@@ -212,6 +212,11 @@ async function loadMachines() {
 
   showMessage('machine-error');
   showMessage('selected-machine');
+  selectedMachineId = null;
+  get('reservation-form-panel').hidden = true;
+  get('reservation-form').reset();
+  showMessage('reservation-error');
+  showMessage('reservation-success');
   get('machine-loading').hidden = false;
   get('machine-empty').hidden = true;
   list.replaceChildren();
@@ -266,15 +271,21 @@ async function loadMachines() {
         button.textContent = 'Unavailable';
       }
 
+            
       button.addEventListener('click', () => {
         selectedMachineId = machine.id;
 
         showMessage(
           'selected-machine',
-          machine.name +
-          ' selected. Reservation scheduling will be added in UC3.'
+          machine.name + ' selected. Choose your reservation time below.'
         );
+
+        get('reservation-form-panel').hidden = false;
+
+        showMessage('reservation-error');
+        showMessage('reservation-success');
       });
+
 
       card.append(title, typeText, status, button);
       list.append(card);
@@ -296,5 +307,94 @@ get('available-only').addEventListener(
   'change',
   loadMachines
 );
+
+/* UC3: Create a machine reservation. */
+
+get('reservation-form').addEventListener('submit', async (event) => {
+  event.preventDefault();
+
+  if (selectedMachineId === null) {
+    showMessage('reservation-error', 'Please select a machine first.');
+    return;
+  }
+
+  const button = get('reserve-button');
+  button.disabled = true;
+
+  showMessage('reservation-error');
+  showMessage('reservation-success');
+
+  const startValue = get('reservation-start').value;
+  const endValue = get('reservation-end').value;
+
+  const start = new Date(startValue);
+  const end = new Date(endValue);
+
+  if (
+    !Number.isFinite(start.getTime()) ||
+    !Number.isFinite(end.getTime()) ||
+    start <= new Date() ||
+    end <= start
+  ) {
+    showMessage(
+      'reservation-error',
+      'Choose a future start time and an end time after the start.'
+    );
+    button.disabled = false;
+    return;
+  }
+
+  const reservation = {
+    machineId: selectedMachineId,
+    startsAt: start.toISOString(),
+    endsAt: end.toISOString()
+  };
+
+  try {
+    const response = await postAccount(
+      '/api/reservations',
+      JSON.stringify(reservation),
+      'application/json'
+    );
+
+    if (response.status === 409) {
+      throw new Error(
+        'This machine is already reserved for the selected time.'
+      );
+    }
+
+    if (response.status === 400) {
+      throw new Error('Please check your reservation details.');
+    }
+
+    if (!response.ok) {
+      throw new Error('Could not create reservation.');
+    }
+
+    showMessage(
+      'reservation-success',
+      'Your reservation has been confirmed!'
+    );
+
+    get('reservation-form').reset();
+
+    const reservationsResponse = await fetch(
+      '/api/reservations',
+      { cache: 'no-store' }
+    );
+
+    if (reservationsResponse.ok) {
+      showReservations(await reservationsResponse.json());
+    }
+
+  } catch (error) {
+    showMessage(
+      'reservation-error',
+      error.message || 'Could not create reservation.'
+    );
+  } finally {
+    button.disabled = false;
+  }
+});
 
 loadAccount();

@@ -50,3 +50,30 @@ ON CONFLICT (name) DO NOTHING;
 
 CREATE INDEX IF NOT EXISTS machines_type_status
     ON machines (type, status);
+
+
+
+-- UC3: Link reservations to machines using their IDs.
+ALTER TABLE reservations
+ADD COLUMN IF NOT EXISTS machine_id BIGINT
+REFERENCES machines(id);
+
+-- Link existing reservations to their matching machines.
+UPDATE reservations r
+SET machine_id = m.id
+FROM machines m
+WHERE r.machine = m.name
+  AND r.machine_id IS NULL;
+
+-- Enable support for exclusion constraints using BIGINT values.
+CREATE EXTENSION IF NOT EXISTS btree_gist;
+
+-- Prevent overlapping confirmed reservations for the same machine.
+-- The constraint is created only if it does not already exist.
+SELECT 1
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint
+    WHERE conname = 'reservations_no_overlap'
+      AND conrelid = 'reservations'::regclass
+);

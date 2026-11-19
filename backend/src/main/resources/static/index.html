@@ -105,9 +105,46 @@
         No machines match your filters.
       </p>
 
+      
       <p id="selected-machine" class="notice"
         role="status" hidden></p>
-    </section>
+
+      <!-- UC3: Reservation scheduling -->
+      <div id="reservation-form-panel" hidden>
+        <h3>Reserve Selected Machine</h3>
+
+        <form id="reservation-form">
+          <label for="reservation-start">Start date and time</label>
+          <input
+            id="reservation-start"
+            type="datetime-local"
+            required
+          >
+
+          <label for="reservation-end">End date and time</label>
+          <input
+            id="reservation-end"
+            type="datetime-local"
+            required
+          >
+
+          <button
+            id="reserve-button"
+            type="submit"
+            class="primary"
+          >
+            Confirm Reservation
+          </button>
+        </form>
+
+        <p id="reservation-error" class="error"
+          role="alert" hidden></p>
+
+        <p id="reservation-success" class="notice"
+          role="status" hidden></p>
+      </div>
+      </section>
+
 
       <section id="customer-reservations" hidden>
         <p id="empty-reservations" class="empty">You don’t have any reservations yet.</p>
