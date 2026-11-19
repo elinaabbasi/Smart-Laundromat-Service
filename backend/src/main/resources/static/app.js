@@ -3,6 +3,11 @@ const get = (id) => document.getElementById(id);
 const signInForm = get('sign-in-form');
 const registerForm = get('register-form');
 
+function formatLabel(value) {
+  return value.replaceAll('_', ' ').toLowerCase()
+    .replace(/\b[a-z]/g, (letter) => letter.toUpperCase());
+}
+
 function showMessage(id, message = '') {
   const element = get(id);
   element.textContent = message;
@@ -27,7 +32,7 @@ function showReservations(customer) {
   for (const reservation of customer.reservations) {
     const row = template.content.cloneNode(true);
     row.querySelector('h3').textContent = reservation.machine;
-    row.querySelector('.reservation-status').textContent = reservation.status;
+    row.querySelector('.reservation-status').textContent = formatLabel(reservation.status);
 
     const start = new Date(reservation.startsAt);
     const end = new Date(reservation.endsAt);
@@ -252,11 +257,10 @@ async function loadMachines() {
       title.textContent = machine.name;
 
       const typeText = document.createElement('p');
-      typeText.textContent = 'Type: ' + machine.type;
+      typeText.textContent = 'Type: ' + formatLabel(machine.type);
 
       const status = document.createElement('p');
-      status.textContent = 'Status: ' +
-        machine.status.replaceAll('_', ' ');
+      status.textContent = 'Status: ' + formatLabel(machine.status);
 
       const button = document.createElement('button');
       button.type = 'button';

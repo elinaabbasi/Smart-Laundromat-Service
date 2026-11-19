@@ -357,6 +357,10 @@ form .primary {
   width: 100%;
 }
 
+.machine-card button:disabled {
+  cursor: default;
+}
+
 #reservation-form {
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr));
   align-items: end;
