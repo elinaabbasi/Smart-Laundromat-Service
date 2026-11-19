@@ -52,31 +52,9 @@ button:disabled { opacity: .65; cursor: wait; }
 }
 
 .brand {
-  display: flex;
-  align-items: center;
-  gap: .7rem;
   font-size: 1rem;
   font-weight: 750;
   letter-spacing: -.02em;
-}
-
-.brand-mark {
-  display: grid;
-  place-items: center;
-  flex-shrink: 0;
-  width: 2rem;
-  height: 2rem;
-  border-radius: .65rem;
-  background: #adf0cf;
-}
-
-.brand-mark::before {
-  content: '';
-  width: .8rem;
-  height: .8rem;
-  border: 2px solid var(--ink);
-  border-radius: 50%;
-  background: linear-gradient(155deg, transparent 55%, #4eb38d 56%);
 }
 
 .artwork {

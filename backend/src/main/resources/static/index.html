@@ -1,5 +1,6 @@
 <!doctype html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -8,12 +9,10 @@
   <link rel="stylesheet" href="styles.css">
   <script type="module" src="app.js"></script>
 </head>
+
 <body>
   <main id="loading" class="loading-panel">
-    <div class="brand">
-      <span class="brand-mark" aria-hidden="true"></span>
-      Smart Laundromat
-    </div>
+    <div class="brand">Smart Laundromat</div>
     <p id="loading-message" role="status">Loading your account…</p>
     <p id="loading-error" class="error" role="alert" hidden></p>
     <button id="retry" type="button" class="primary" hidden>Try again</button>
@@ -22,16 +21,15 @@
 
   <main id="account" class="account-shell" hidden>
     <aside class="brand-panel">
-      <div class="brand">
-        <span class="brand-mark" aria-hidden="true"></span>
-        Smart Laundromat
-      </div>
+      <div class="brand">Smart Laundromat</div>
       <div class="artwork" aria-hidden="true">
         <div class="orbit"></div>
         <div class="orbit orbit-two"></div>
         <div class="washer">
           <div class="washer-controls"><i></i><i></i><i></i></div>
-          <div class="washer-door"><div class="washer-water"></div></div>
+          <div class="washer-door">
+            <div class="washer-water"></div>
+          </div>
         </div>
         <div class="bubble bubble-one"></div>
         <div class="bubble bubble-two"></div>
@@ -45,20 +43,13 @@
         <p id="sign-in-notice" class="notice" role="status" hidden></p>
         <p id="sign-in-error" class="error" role="alert" hidden></p>
         <form id="sign-in-form" method="post" action="/api/login">
-          <label>
-            Email address
-            <input id="sign-in-email" name="email" type="email" autocomplete="username"
-                   placeholder="you@example.com" required maxlength="254">
-          </label>
-          <label>
-            Password
-            <input name="password" type="password" autocomplete="current-password"
-                   placeholder="Enter your password" required maxlength="128">
-          </label>
+          <input id="sign-in-email" name="email" type="email" autocomplete="username" aria-label="Email address"
+            placeholder="Email address" required maxlength="254">
+          <input name="password" type="password" autocomplete="current-password" aria-label="Password"
+            placeholder="Password" required maxlength="128">
           <button id="sign-in-button" type="submit" class="primary">Sign in</button>
         </form>
         <p class="switch-mode">
-          New to Smart Laundromat?
           <button id="show-register" type="button" class="text-button">Create an account</button>
         </p>
       </div>
@@ -70,19 +61,12 @@
         <form id="register-form" method="post" action="/api/register">
           <label>
             Full name
-            <input id="register-name" name="name" autocomplete="name"
-                   placeholder="Jane Smith" required maxlength="100">
+            <input id="register-name" name="name" autocomplete="name" placeholder="Jane Smith" required maxlength="100">
           </label>
-          <label>
-            Email address
-            <input name="email" type="email" autocomplete="username"
-                   placeholder="you@example.com" required maxlength="254">
-          </label>
-          <label>
-            Password
-            <input name="password" type="password" autocomplete="new-password"
-                   placeholder="At least 8 characters" required minlength="8" maxlength="128">
-          </label>
+          <input name="email" type="email" autocomplete="username" aria-label="Email address"
+            placeholder="Email address" required maxlength="254">
+          <input name="password" type="password" autocomplete="new-password" aria-label="Password"
+            placeholder="Password (at least 8 characters)" required minlength="8" maxlength="128">
           <button id="register-button" type="submit" class="primary">Create account</button>
         </form>
         <p class="switch-mode">
@@ -95,10 +79,7 @@
 
   <div id="dashboard" class="dashboard" hidden>
     <header class="dashboard-header">
-      <div class="brand">
-        <span class="brand-mark" aria-hidden="true"></span>
-        Smart Laundromat
-      </div>
+      <div class="brand">Smart Laundromat</div>
       <button id="sign-out" type="button" class="secondary">Sign out</button>
     </header>
     <main class="reservation-panel">
@@ -120,4 +101,5 @@
     </li>
   </template>
 </body>
+
 </html>
