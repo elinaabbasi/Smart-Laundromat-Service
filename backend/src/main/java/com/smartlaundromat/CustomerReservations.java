@@ -6,7 +6,6 @@ import java.time.OffsetDateTime;
 import java.time.Instant;
 import java.util.List;
 
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.web.bind.annotation.*;
@@ -106,38 +105,32 @@ public class CustomerReservations {
                     "This machine is currently unavailable.");
         }
 
-        // Save the reservation.
         // PostgreSQL's exclusion constraint prevents overlapping bookings.
-        try {
-            return database.sql("""
-                    INSERT INTO reservations
-                        (customer_id, machine, machine_id,
-                         starts_at, ends_at, status)
-                    VALUES
-                        (:customerId, :machine, :machineId,
-                         :startsAt, :endsAt, 'Confirmed')
-                    RETURNING id, machine, starts_at, ends_at, status
-                    """)
-                    .param("customerId", customerId)
-                    .param("machine", machine.name())
-                    .param("machineId", machine.id())
-                    .param("startsAt", request.startsAt().atOffset(java.time.ZoneOffset.UTC))
-                    .param("endsAt", request.endsAt().atOffset(java.time.ZoneOffset.UTC))
-                    .query((row, index) -> new Reservation(
-                            row.getLong("id"),
-                            row.getString("machine"),
-                            row.getObject("starts_at", OffsetDateTime.class),
-                            row.getObject("ends_at", OffsetDateTime.class),
-                            row.getString("status")))
-                    .single();
-
-        } catch (DataIntegrityViolationException exception) {
-            // An overlapping reservation violates the database constraint.
-            throw new ResponseStatusException(
-                    HttpStatus.CONFLICT,
-                    "This machine is already booked for the selected time.",
-                    exception);
-        }
+        return database.sql("""
+                INSERT INTO reservations
+                    (customer_id, machine, machine_id,
+                     starts_at, ends_at, status)
+                VALUES
+                    (:customerId, :machine, :machineId,
+                     :startsAt, :endsAt, 'Confirmed')
+                ON CONFLICT ON CONSTRAINT reservations_no_overlap DO NOTHING
+                RETURNING id, machine, starts_at, ends_at, status
+                """)
+                .param("customerId", customerId)
+                .param("machine", machine.name())
+                .param("machineId", machine.id())
+                .param("startsAt", request.startsAt().atOffset(java.time.ZoneOffset.UTC))
+                .param("endsAt", request.endsAt().atOffset(java.time.ZoneOffset.UTC))
+                .query((row, index) -> new Reservation(
+                        row.getLong("id"),
+                        row.getString("machine"),
+                        row.getObject("starts_at", OffsetDateTime.class),
+                        row.getObject("ends_at", OffsetDateTime.class),
+                        row.getString("status")))
+                .optional()
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.CONFLICT,
+                        "This machine is already booked for the selected time."));
     }
 
     public record ReservationRequest(

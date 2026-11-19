@@ -27,16 +27,11 @@ After saving edits to HTML, CSS, or JavaScript, refresh the browser to see them.
 
 ## Try the reservations page
 
-A fresh account shows an empty list. Booking creation is outside this feature. To see an example entry, register first, then run this SQL in your local PostgreSQL client. Replace the example email with your registered email in lowercase.
+A fresh account shows an empty list. Sign in, select an available machine, and reserve a future time. The confirmed booking appears in My reservations.
 
-```sql
-INSERT INTO reservations (customer_id, machine, starts_at, ends_at)
-SELECT id, 'Washer 03', now() + interval '1 day', now() + interval '1 day 45 minutes'
-FROM customers
-WHERE email = 'you@example.com';
-```
+Try booking an overlapping time on the same machine. The form reports that the machine is already reserved for that time. You can book the same time on another available machine or book the original machine starting when the first reservation ends.
 
-Refresh the page to see the booking. Sign in with another account to confirm that it has its own reservation list.
+If an existing database already has overlapping confirmed reservations for a machine, resolve those conflicts before starting the updated app. PostgreSQL validates existing reservations when it installs the constraint.
 
 ## Try the admin role
 

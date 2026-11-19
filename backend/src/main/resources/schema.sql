@@ -69,11 +69,21 @@ WHERE r.machine = m.name
 CREATE EXTENSION IF NOT EXISTS btree_gist;
 
 -- Prevent overlapping confirmed reservations for the same machine.
--- The constraint is created only if it does not already exist.
-SELECT 1
-WHERE NOT EXISTS (
-    SELECT 1
-    FROM pg_constraint
-    WHERE conname = 'reservations_no_overlap'
-      AND conrelid = 'reservations'::regclass
-);
+-- Use a single-quoted body so Spring keeps the block together.
+DO '
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = ''reservations_no_overlap''
+          AND conrelid = ''reservations''::regclass
+    ) THEN
+        ALTER TABLE reservations
+        ADD CONSTRAINT reservations_no_overlap
+        EXCLUDE USING gist (
+            machine_id WITH =,
+            tstzrange(starts_at, ends_at, ''[)'') WITH &&
+        ) WHERE (status = ''Confirmed'');
+    END IF;
+END;
+';
