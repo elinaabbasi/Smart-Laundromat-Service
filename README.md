@@ -23,6 +23,8 @@ Use Java 17 or later, Maven, and PostgreSQL. If you use Docker for PostgreSQL, o
 
 3. Open [localhost:8080](http://localhost:8080). Spring Boot serves both the frontend and the API.
 
+After saving edits to HTML, CSS, or JavaScript, refresh the browser to see them. Restart Spring Boot after editing Java code or application settings.
+
 ## Try the reservations page
 
 A fresh account shows an empty list. Booking creation is outside this feature. To see an example entry, register first, then run this SQL in your local PostgreSQL client. Replace the example email with your registered email in lowercase.
