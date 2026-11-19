@@ -66,89 +66,72 @@
       <div class="brand">Smart Laundromat</div>
       <button id="sign-out" type="button" class="secondary">Sign out</button>
     </header>
-    <main class="reservation-panel">
+    <main class="dashboard-content">
       <h1 id="dashboard-title" tabindex="-1"></h1>
-      <p id="account-name" class="intro"></p>
+      <p id="account-name" class="intro" hidden></p>
       <p id="sign-out-error" class="error" role="alert" hidden></p>
 
-    <!-- UC2: Machine browsing and selection -->
-    <section id="customer-machines" hidden>
-      <h2>Find a Machine</h2>
-      <p class="intro">
-        Browse washers and dryers and check availability.
-      </p>
+      <!-- UC2: Machine browsing and selection -->
+      <section id="customer-machines" hidden>
+        <h2>Find a Machine</h2>
+        <p class="intro">
+          Browse washers and dryers and check availability.
+        </p>
 
-      <div class="machine-filters">
-        <label for="machine-type">Machine type</label>
-        <div class="machine-type-select">
-          <select id="machine-type">
-            <option value="">All machines</option>
-            <option value="WASHER">Washers</option>
-            <option value="DRYER">Dryers</option>
-          </select>
+        <div class="machine-filters">
+          <label for="machine-type">Machine type</label>
+          <div class="machine-type-select">
+            <select id="machine-type">
+              <option value="">All machines</option>
+              <option value="Washer">Washers</option>
+              <option value="Dryer">Dryers</option>
+            </select>
+          </div>
+
+          <label class="availability-filter">
+            <input type="checkbox" id="available-only">
+            Available only
+          </label>
         </div>
 
-        <label class="availability-filter">
-          <input type="checkbox" id="available-only">
-          Available only
-        </label>
-      </div>
+        <p id="machine-error" class="error" role="alert" hidden></p>
 
-      <p id="machine-error" class="error"
-        role="alert" hidden></p>
+        <p id="machine-loading" role="status" hidden>
+          Loading machines...
+        </p>
 
-      <p id="machine-loading" role="status" hidden>
-        Loading machines...
-      </p>
+        <div id="machine-list" class="machine-grid"></div>
 
-      <div id="machine-list" class="machine-grid"></div>
+        <p id="machine-empty" class="empty" hidden>
+          No machines match your filters.
+        </p>
 
-      <p id="machine-empty" class="empty" hidden>
-        No machines match your filters.
-      </p>
+        <p id="selected-machine" class="notice" role="status" hidden></p>
 
-      
-      <p id="selected-machine" class="notice"
-        role="status" hidden></p>
+        <!-- UC3: Reservation scheduling -->
+        <div id="reservation-form-panel" hidden>
+          <h3>Reserve Selected Machine</h3>
 
-      <!-- UC3: Reservation scheduling -->
-      <div id="reservation-form-panel" hidden>
-        <h3>Reserve Selected Machine</h3>
+          <form id="reservation-form">
+            <div>
+              <label for="reservation-start">Start date and time</label>
+              <input id="reservation-start" type="datetime-local" required>
+            </div>
+            <div>
+              <label for="reservation-end">End date and time</label>
+              <input id="reservation-end" type="datetime-local" required>
+            </div>
+            <button id="reserve-button" type="submit" class="primary">Confirm Reservation</button>
+          </form>
 
-        <form id="reservation-form">
-          <label for="reservation-start">Start date and time</label>
-          <input
-            id="reservation-start"
-            type="datetime-local"
-            required
-          >
+          <p id="reservation-error" class="error" role="alert" hidden></p>
 
-          <label for="reservation-end">End date and time</label>
-          <input
-            id="reservation-end"
-            type="datetime-local"
-            required
-          >
-
-          <button
-            id="reserve-button"
-            type="submit"
-            class="primary"
-          >
-            Confirm Reservation
-          </button>
-        </form>
-
-        <p id="reservation-error" class="error"
-          role="alert" hidden></p>
-
-        <p id="reservation-success" class="notice"
-          role="status" hidden></p>
-      </div>
+          <p id="reservation-success" class="notice" role="status" hidden></p>
+        </div>
       </section>
 
-
       <section id="customer-reservations" hidden>
+        <h2>My reservations</h2>
         <p id="empty-reservations" class="empty">You don’t have any reservations yet.</p>
         <ul id="reservation-list" class="reservation-list"></ul>
       </section>
@@ -158,7 +141,7 @@
   <template id="reservation-template">
     <li>
       <div>
-        <h2></h2>
+        <h3></h3>
         <p><time class="start-time"></time> – <time class="end-time"></time></p>
       </div>
       <span class="reservation-status"></span>

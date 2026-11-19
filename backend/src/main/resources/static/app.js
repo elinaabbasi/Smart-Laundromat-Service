@@ -26,7 +26,7 @@ function showReservations(customer) {
 
   for (const reservation of customer.reservations) {
     const row = template.content.cloneNode(true);
-    row.querySelector('h2').textContent = reservation.machine;
+    row.querySelector('h3').textContent = reservation.machine;
     row.querySelector('.reservation-status').textContent = reservation.status;
 
     const start = new Date(reservation.startsAt);
@@ -50,9 +50,8 @@ function showDashboard(account, isAdmin) {
   const heading = get('dashboard-title');
   heading.textContent = isAdmin
     ? 'Admin dashboard'
-    : 'My reservations';
-  get('account-name').textContent =
-    'Signed in as ' + account.name;
+    : `${account.name}'s Dashboard`;
+  showMessage('account-name', isAdmin ? 'Signed in as ' + account.name : '');
   get('customer-reservations').hidden = isAdmin;
   get('customer-machines').hidden = isAdmin;
 
@@ -173,7 +172,7 @@ get('sign-out').addEventListener('click', async (event) => {
     const response = await postAccount('/api/logout');
     if (!response.ok) throw new Error();
 
-    get('account-name').textContent = '';
+    showMessage('account-name');
     get('reservation-list').replaceChildren();
     showSignIn('You have signed out.');
     get('sign-in-email').focus();
@@ -271,7 +270,7 @@ async function loadMachines() {
         button.textContent = 'Unavailable';
       }
 
-            
+
       button.addEventListener('click', () => {
         selectedMachineId = machine.id;
 
