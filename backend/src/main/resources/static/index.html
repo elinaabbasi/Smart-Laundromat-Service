@@ -70,6 +70,45 @@
       <h1 id="dashboard-title" tabindex="-1"></h1>
       <p id="account-name" class="intro"></p>
       <p id="sign-out-error" class="error" role="alert" hidden></p>
+
+    <!-- UC2: Machine browsing and selection -->
+    <section id="customer-machines" hidden>
+      <h2>Find a Machine</h2>
+      <p class="intro">
+        Browse washers and dryers and check availability.
+      </p>
+
+      <div class="machine-filters">
+        <label for="machine-type">Machine type</label>
+        <select id="machine-type">
+          <option value="">All machines</option>
+          <option value="WASHER">Washers</option>
+          <option value="DRYER">Dryers</option>
+        </select>
+
+        <label class="availability-filter">
+          <input type="checkbox" id="available-only">
+          Available only
+        </label>
+      </div>
+
+      <p id="machine-error" class="error"
+        role="alert" hidden></p>
+
+      <p id="machine-loading" role="status" hidden>
+        Loading machines...
+      </p>
+
+      <div id="machine-list" class="machine-grid"></div>
+
+      <p id="machine-empty" class="empty" hidden>
+        No machines match your filters.
+      </p>
+
+      <p id="selected-machine" class="notice"
+        role="status" hidden></p>
+    </section>
+
       <section id="customer-reservations" hidden>
         <p id="empty-reservations" class="empty">You don’t have any reservations yet.</p>
         <ul id="reservation-list" class="reservation-list"></ul>
