@@ -273,12 +273,31 @@ form .primary {
   margin-bottom: 1.5rem;
 }
 
-.machine-filters select {
+.machine-type-select {
+  position: relative;
+}
+
+.machine-type-select select {
+  appearance: none;
   padding: .65rem;
+  padding-inline-end: 2rem;
   border: 1px solid var(--line);
   border-radius: .6rem;
   background: white;
   font: inherit;
+}
+
+.machine-type-select::after {
+  content: "";
+  position: absolute;
+  inset-block-start: 50%;
+  inset-inline-end: .85rem;
+  width: .4rem;
+  height: .4rem;
+  border-right: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+  transform: translateY(-70%) rotate(45deg);
+  pointer-events: none;
 }
 
 .availability-filter {
