@@ -45,13 +45,21 @@ function showReservations(customer) {
   get('empty-reservations').hidden = customer.reservations.length > 0;
 }
 
+
 function showDashboard(account, isAdmin) {
   const heading = get('dashboard-title');
-  heading.textContent = isAdmin ? 'Admin dashboard' : 'My reservations';
-  get('account-name').textContent = 'Signed in as ' + account.name;
+  heading.textContent = isAdmin
+    ? 'Admin dashboard'
+    : 'My reservations';
+  get('account-name').textContent =
+    'Signed in as ' + account.name;
   get('customer-reservations').hidden = isAdmin;
-  if (!isAdmin) showReservations(account);
+  get('customer-machines').hidden = isAdmin;
 
+  if (!isAdmin) {
+    showReservations(account);
+    loadMachines();
+  }
   showMessage('sign-out-error');
   get('loading').hidden = true;
   get('account').hidden = true;
@@ -191,4 +199,102 @@ get('show-sign-in').addEventListener('click', () => {
 });
 
 get('retry').addEventListener('click', loadAccount);
+
+
+// UC2: Browse and select machines.
+
+let selectedMachineId = null;
+
+async function loadMachines() {
+  const list = get('machine-list');
+  const type = get('machine-type').value;
+  const availableOnly = get('available-only').checked;
+
+  showMessage('machine-error');
+  showMessage('selected-machine');
+  get('machine-loading').hidden = false;
+  get('machine-empty').hidden = true;
+  list.replaceChildren();
+
+  const params = new URLSearchParams();
+
+  if (type) {
+    params.set('type', type);
+  }
+
+  if (availableOnly) {
+    params.set('availableOnly', 'true');
+  }
+
+  try {
+    const response = await fetch(
+      '/api/machines?' + params.toString(),
+      { cache: 'no-store' }
+    );
+
+    if (!response.ok) {
+      throw new Error('Could not load machines.');
+    }
+
+    const machines = await response.json();
+
+    get('machine-empty').hidden = machines.length > 0;
+
+    for (const machine of machines) {
+      const card = document.createElement('div');
+      card.className = 'machine-card';
+
+      const title = document.createElement('h3');
+      title.textContent = machine.name;
+
+      const typeText = document.createElement('p');
+      typeText.textContent = 'Type: ' + machine.type;
+
+      const status = document.createElement('p');
+      status.textContent = 'Status: ' +
+        machine.status.replaceAll('_', ' ');
+
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'primary';
+      button.textContent = 'Select';
+
+      const available = machine.status === 'AVAILABLE';
+      button.disabled = !available;
+
+      if (!available) {
+        button.textContent = 'Unavailable';
+      }
+
+      button.addEventListener('click', () => {
+        selectedMachineId = machine.id;
+
+        showMessage(
+          'selected-machine',
+          machine.name +
+          ' selected. Reservation scheduling will be added in UC3.'
+        );
+      });
+
+      card.append(title, typeText, status, button);
+      list.append(card);
+    }
+
+  } catch (error) {
+    showMessage('machine-error', error.message);
+  } finally {
+    get('machine-loading').hidden = true;
+  }
+}
+
+get('machine-type').addEventListener(
+  'change',
+  loadMachines
+);
+
+get('available-only').addEventListener(
+  'change',
+  loadMachines
+);
+
 loadAccount();

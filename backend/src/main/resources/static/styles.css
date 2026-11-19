@@ -258,3 +258,65 @@ form .primary {
   background: #f4f8ff;
   color: var(--muted);
 }
+
+/* UC2: Machine browsing */
+
+#customer-machines {
+  margin-bottom: 2.5rem;
+}
+
+.machine-filters {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.machine-filters select {
+  padding: .65rem;
+  border: 1px solid var(--line);
+  border-radius: .6rem;
+  background: white;
+  font: inherit;
+}
+
+.availability-filter {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+}
+
+.availability-filter input {
+  width: auto;
+  min-height: auto;
+}
+
+.machine-grid {
+  display: grid;
+  grid-template-columns:
+    repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.machine-card {
+  padding: 1.25rem;
+  border: 1px solid var(--line);
+  border-radius: .8rem;
+  background: #fff;
+}
+
+.machine-card h3 {
+  margin: 0 0 .75rem;
+}
+
+.machine-card p {
+  color: var(--muted);
+  margin: .4rem 0;
+}
+
+.machine-card button {
+  margin-top: 1rem;
+  width: 100%;
+}
