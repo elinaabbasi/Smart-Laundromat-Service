@@ -26,6 +26,8 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/", "/index.html", "/styles.css", "/app.js").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/csrf").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/register", "/api/login").permitAll()
+                        .requestMatchers("/api/reservations").hasRole("CUSTOMER")
+                        .requestMatchers("/api/admin", "/api/admin/**").hasRole("ADMIN")
                         .requestMatchers("/error").permitAll()
                         .anyRequest().authenticated())
                 .exceptionHandling(errors -> errors.authenticationEntryPoint(new HttpStatusEntryPoint(UNAUTHORIZED)))
@@ -48,13 +50,14 @@ public class SecurityConfig {
     UserDetailsService customers(JdbcClient database) {
         return email -> {
             String normalizedEmail = CustomerAccounts.normalizeEmail(email);
-            String hash = database.sql("SELECT password_hash FROM customers WHERE email = :email")
+            return database.sql("SELECT password_hash, role FROM customers WHERE email = :email")
                     .param("email", normalizedEmail)
-                    .query(String.class)
+                    .query((row, index) -> User.withUsername(normalizedEmail)
+                            .password(row.getString("password_hash"))
+                            .roles(row.getString("role"))
+                            .build())
                     .optional()
                     .orElseThrow(() -> new UsernameNotFoundException("Customer not found"));
-
-            return User.withUsername(normalizedEmail).password(hash).roles("CUSTOMER").build();
         };
     }
 

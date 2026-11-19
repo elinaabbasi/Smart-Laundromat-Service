@@ -42,13 +42,21 @@ function showReservations(customer) {
     list.append(row);
   }
 
-  get('customer-name').textContent = 'Signed in as ' + customer.name;
   get('empty-reservations').hidden = customer.reservations.length > 0;
+}
+
+function showDashboard(account, isAdmin) {
+  const heading = get('dashboard-title');
+  heading.textContent = isAdmin ? 'Admin dashboard' : 'My reservations';
+  get('account-name').textContent = 'Signed in as ' + account.name;
+  get('customer-reservations').hidden = isAdmin;
+  if (!isAdmin) showReservations(account);
+
   showMessage('sign-out-error');
   get('loading').hidden = true;
   get('account').hidden = true;
   get('dashboard').hidden = false;
-  get('reservations-title').focus();
+  heading.focus();
 }
 
 async function loadAccount() {
@@ -59,13 +67,22 @@ async function loadAccount() {
   showMessage('loading-message', 'Loading your account…');
 
   try {
-    const response = await fetch('/api/reservations', { cache: 'no-store' });
+    const session = await fetch('/api/session', { cache: 'no-store' });
+    if (session.status === 401) {
+      showSignIn();
+      return;
+    }
+    if (!session.ok) throw new Error();
+    const { role } = await session.json();
+    const isAdmin = role === 'ADMIN';
+    const page = isAdmin ? '/api/admin' : '/api/reservations';
+    const response = await fetch(page, { cache: 'no-store' });
     if (response.status === 401) {
       showSignIn();
       return;
     }
     if (!response.ok) throw new Error();
-    showReservations(await response.json());
+    showDashboard(await response.json(), isAdmin);
   } catch {
     showMessage('loading-message');
     showMessage('loading-error', 'We could not load your account. Please try again.');
@@ -148,7 +165,7 @@ get('sign-out').addEventListener('click', async (event) => {
     const response = await postAccount('/api/logout');
     if (!response.ok) throw new Error();
 
-    get('customer-name').textContent = '';
+    get('account-name').textContent = '';
     get('reservation-list').replaceChildren();
     showSignIn('You have signed out.');
     get('sign-in-email').focus();

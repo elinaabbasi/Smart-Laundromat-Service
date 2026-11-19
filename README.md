@@ -38,9 +38,21 @@ WHERE email = 'you@example.com';
 
 Refresh the page to see the booking. Sign in with another account to confirm that it has its own reservation list.
 
+## Try the admin role
+
+Both roles use the same sign-in form. Public registration creates a Customer account. To try the Admin dashboard, register a separate account and run this in your local PostgreSQL client. Replace the example email with that account’s email in lowercase.
+
+```sql
+UPDATE customers
+SET role = 'ADMIN'
+WHERE email = 'admin@example.com';
+```
+
+Sign in with that account to open the Admin dashboard. If it was already signed in, sign out and back in to load the new role.
+
 ## How it works
 
 - The frontend files are in `backend/src/main/resources/static`. `index.html` contains the forms and reservation layout, `styles.css` sets the appearance, and `app.js` connects the forms to the API.
 - Spring Boot creates the `customers` and `reservations` tables on startup. A reservation belongs to one customer through `customer_id`.
-- Spring Security hashes passwords with PBKDF2 and keeps the signed-in customer in a server-side session. The browser sends the session cookie with each request.
-- The reservations endpoint reads the customer email from the signed-in session and uses it to filter the database query. Signing out ends the session.
+- Spring Security hashes passwords with PBKDF2 and loads the saved role into the session at sign-in. The browser sends the session cookie with each request.
+- The Admin endpoint requires the Admin role. The reservations endpoint requires the Customer role and uses the signed-in email to return that customer’s reservations. Signing out ends the session.

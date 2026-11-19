@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#102f35">
+  <meta name="theme-color" content="#f7faff">
   <title>Smart Laundromat</title>
   <link rel="stylesheet" href="styles.css">
   <script type="module" src="app.js"></script>
@@ -20,20 +20,12 @@
   </main>
 
   <main id="account" class="account-shell" hidden>
-    <header class="brand account-brand">
-      <div class="washer" aria-hidden="true">
-        <div class="washer-controls"><i></i><i></i><i></i></div>
-        <div class="washer-door">
-          <div class="washer-water"></div>
-        </div>
-      </div>
-      Smart Laundromat
-    </header>
+    <header class="brand account-brand">Smart Laundromat</header>
 
     <section class="account-form">
       <div id="sign-in-panel">
         <h1>Sign in</h1>
-        <p class="intro">Welcome back. Sign in to view your reservations.</p>
+        <p class="intro">Welcome back. Sign in to your account.</p>
         <p id="sign-in-notice" class="notice" role="status" hidden></p>
         <p id="sign-in-error" class="error" role="alert" hidden></p>
         <form id="sign-in-form" method="post" action="/api/login">
@@ -53,8 +45,8 @@
         <p class="intro">Set up your account to see your reservations.</p>
         <p id="register-error" class="error" role="alert" hidden></p>
         <form id="register-form" method="post" action="/api/register">
-          <input id="register-name" name="name" autocomplete="name" aria-label="Full name"
-            placeholder="Full name" required maxlength="100">
+          <input id="register-name" name="name" autocomplete="name" aria-label="Full name" placeholder="Full name"
+            required maxlength="100">
           <input name="email" type="email" autocomplete="username" aria-label="Email address"
             placeholder="Email address" required maxlength="254">
           <input name="password" type="password" autocomplete="new-password" aria-label="Password"
@@ -75,11 +67,13 @@
       <button id="sign-out" type="button" class="secondary">Sign out</button>
     </header>
     <main class="reservation-panel">
-      <h1 id="reservations-title" tabindex="-1">My reservations</h1>
-      <p id="customer-name" class="intro"></p>
+      <h1 id="dashboard-title" tabindex="-1"></h1>
+      <p id="account-name" class="intro"></p>
       <p id="sign-out-error" class="error" role="alert" hidden></p>
-      <p id="empty-reservations" class="empty">You don’t have any reservations yet.</p>
-      <ul id="reservation-list" class="reservation-list"></ul>
+      <section id="customer-reservations" hidden>
+        <p id="empty-reservations" class="empty">You don’t have any reservations yet.</p>
+        <ul id="reservation-list" class="reservation-list"></ul>
+      </section>
     </main>
   </div>
 

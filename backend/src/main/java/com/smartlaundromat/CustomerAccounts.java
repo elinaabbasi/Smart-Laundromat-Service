@@ -1,7 +1,9 @@
 package com.smartlaundromat;
 
+import java.security.Principal;
 import java.util.Locale;
 
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
@@ -37,12 +39,26 @@ public class CustomerAccounts {
         return token;
     }
 
+    @GetMapping("/session")
+    public AccountRole session(HttpServletRequest request) {
+        return new AccountRole(request.isUserInRole("ADMIN") ? "ADMIN" : "CUSTOMER");
+    }
+
+    @GetMapping("/admin")
+    public AdminPage admin(Principal account) {
+        String name = database.sql("SELECT name FROM customers WHERE email = :email")
+                .param("email", account.getName())
+                .query(String.class)
+                .single();
+        return new AdminPage(name);
+    }
+
     @PostMapping("/register")
     @ResponseStatus(HttpStatus.CREATED)
     public void register(@Valid @RequestBody Registration registration) {
         int inserted = database.sql("""
-                INSERT INTO customers (name, email, password_hash)
-                VALUES (:name, :email, :password)
+                INSERT INTO customers (name, email, password_hash, role)
+                VALUES (:name, :email, :password, 'CUSTOMER')
                 ON CONFLICT (email) DO NOTHING
                 """)
                 .param("name", registration.name().strip())
@@ -70,4 +86,7 @@ public class CustomerAccounts {
             @NotBlank @Email @Size(max = 254) String email,
             @NotBlank @Size(min = 8, max = 128) String password
     ) {}
+
+    public record AccountRole(String role) {}
+    public record AdminPage(String name) {}
 }
