@@ -1,0 +1,177 @@
+const get = (id) => document.getElementById(id);
+
+const signInForm = get('sign-in-form');
+const registerForm = get('register-form');
+
+function showMessage(id, message = '') {
+  const element = get(id);
+  element.textContent = message;
+  element.hidden = !message;
+}
+
+function showSignIn(message = '') {
+  get('loading').hidden = true;
+  get('dashboard').hidden = true;
+  get('account').hidden = false;
+  get('register-panel').hidden = true;
+  get('sign-in-panel').hidden = false;
+  showMessage('sign-in-error');
+  showMessage('sign-in-notice', message);
+}
+
+function showReservations(customer) {
+  const list = get('reservation-list');
+  const template = get('reservation-template');
+  list.replaceChildren();
+
+  for (const reservation of customer.reservations) {
+    const row = template.content.cloneNode(true);
+    row.querySelector('h2').textContent = reservation.machine;
+    row.querySelector('.reservation-status').textContent = reservation.status;
+
+    const start = new Date(reservation.startsAt);
+    const end = new Date(reservation.endsAt);
+    const startTime = row.querySelector('.start-time');
+    const endTime = row.querySelector('.end-time');
+    const dateOptions = { dateStyle: 'medium', timeStyle: 'short' };
+
+    startTime.dateTime = reservation.startsAt;
+    startTime.textContent = start.toLocaleString(undefined, dateOptions);
+    endTime.dateTime = reservation.endsAt;
+    endTime.textContent = end.toLocaleString(undefined, dateOptions);
+    list.append(row);
+  }
+
+  get('customer-name').textContent = 'Signed in as ' + customer.name;
+  get('empty-reservations').hidden = customer.reservations.length > 0;
+  showMessage('sign-out-error');
+  get('loading').hidden = true;
+  get('account').hidden = true;
+  get('dashboard').hidden = false;
+  get('reservations-title').focus();
+}
+
+async function loadAccount() {
+  get('account').hidden = true;
+  get('loading').hidden = false;
+  get('retry').hidden = true;
+  showMessage('loading-error');
+  showMessage('loading-message', 'Loading your account…');
+
+  try {
+    const response = await fetch('/api/reservations', { cache: 'no-store' });
+    if (response.status === 401) {
+      showSignIn();
+      return;
+    }
+    if (!response.ok) throw new Error();
+    showReservations(await response.json());
+  } catch {
+    showMessage('loading-message');
+    showMessage('loading-error', 'We could not load your account. Please try again.');
+    get('retry').hidden = false;
+  }
+}
+
+// Spring Security requires a fresh CSRF token for account changes.
+async function postAccount(url, body, contentType) {
+  const response = await fetch('/api/csrf', { cache: 'no-store' });
+  if (!response.ok) throw new Error('Could not connect. Please try again.');
+
+  const { headerName, token } = await response.json();
+  const headers = { [headerName]: token };
+  if (contentType) headers['Content-Type'] = contentType;
+  return fetch(url, { method: 'POST', headers, body });
+}
+
+registerForm.addEventListener('submit', async (event) => {
+  event.preventDefault();
+  const button = get('register-button');
+  const switchButton = get('show-sign-in');
+  button.disabled = true;
+  switchButton.disabled = true;
+  showMessage('register-error');
+
+  const fields = Object.fromEntries(new FormData(registerForm));
+  fields.email = fields.email.trim();
+
+  try {
+    const response = await postAccount('/api/register', JSON.stringify(fields), 'application/json');
+    if (response.status === 409) throw new Error('An account with this email already exists.');
+    if (response.status === 400) throw new Error('Check your name and email and use a password with 8 to 128 characters.');
+    if (!response.ok) throw new Error('We could not create your account. Please try again.');
+
+    registerForm.reset();
+    signInForm.reset();
+    get('sign-in-email').value = fields.email;
+    showSignIn('Account created. Sign in with your email and password.');
+    signInForm.elements.password.focus();
+  } catch (error) {
+    showMessage('register-error', error instanceof TypeError ? 'Could not connect. Please try again.' : error.message);
+  } finally {
+    button.disabled = false;
+    switchButton.disabled = false;
+  }
+});
+
+signInForm.addEventListener('submit', async (event) => {
+  event.preventDefault();
+  const button = get('sign-in-button');
+  const switchButton = get('show-register');
+  button.disabled = true;
+  switchButton.disabled = true;
+  showMessage('sign-in-error');
+  showMessage('sign-in-notice');
+
+  try {
+    const fields = new URLSearchParams(new FormData(signInForm));
+    const response = await postAccount('/api/login', fields);
+    if (response.status === 401) throw new Error('Your email or password is incorrect.');
+    if (!response.ok) throw new Error('We could not sign you in. Please try again.');
+
+    signInForm.reset();
+    await loadAccount();
+  } catch (error) {
+    showMessage('sign-in-error', error instanceof TypeError ? 'Could not connect. Please try again.' : error.message);
+  } finally {
+    button.disabled = false;
+    switchButton.disabled = false;
+  }
+});
+
+get('sign-out').addEventListener('click', async (event) => {
+  const button = event.currentTarget;
+  button.disabled = true;
+  showMessage('sign-out-error');
+
+  try {
+    const response = await postAccount('/api/logout');
+    if (!response.ok) throw new Error();
+
+    get('customer-name').textContent = '';
+    get('reservation-list').replaceChildren();
+    showSignIn('You have signed out.');
+    get('sign-in-email').focus();
+  } catch {
+    showMessage('sign-out-error', 'We could not sign you out. Please try again.');
+  } finally {
+    button.disabled = false;
+  }
+});
+
+get('show-register').addEventListener('click', () => {
+  signInForm.reset();
+  get('sign-in-panel').hidden = true;
+  get('register-panel').hidden = false;
+  showMessage('register-error');
+  get('register-name').focus();
+});
+
+get('show-sign-in').addEventListener('click', () => {
+  registerForm.reset();
+  showSignIn();
+  get('sign-in-email').focus();
+});
+
+get('retry').addEventListener('click', loadAccount);
+loadAccount();

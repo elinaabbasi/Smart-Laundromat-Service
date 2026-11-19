@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#102f35">
+  <title>Smart Laundromat</title>
+  <link rel="stylesheet" href="styles.css">
+  <script type="module" src="app.js"></script>
+</head>
+<body>
+  <main id="loading" class="loading-panel">
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true"></span>
+      Smart Laundromat
+    </div>
+    <p id="loading-message" role="status">Loading your account…</p>
+    <p id="loading-error" class="error" role="alert" hidden></p>
+    <button id="retry" type="button" class="primary" hidden>Try again</button>
+    <noscript>Enable JavaScript to use your account.</noscript>
+  </main>
+
+  <main id="account" class="account-shell" hidden>
+    <aside class="brand-panel">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true"></span>
+        Smart Laundromat
+      </div>
+      <div class="artwork" aria-hidden="true">
+        <div class="orbit"></div>
+        <div class="orbit orbit-two"></div>
+        <div class="washer">
+          <div class="washer-controls"><i></i><i></i><i></i></div>
+          <div class="washer-door"><div class="washer-water"></div></div>
+        </div>
+        <div class="bubble bubble-one"></div>
+        <div class="bubble bubble-two"></div>
+      </div>
+    </aside>
+
+    <section class="form-panel">
+      <div id="sign-in-panel" class="account-form">
+        <h1>Sign in</h1>
+        <p class="intro">Welcome back. Sign in to view your reservations.</p>
+        <p id="sign-in-notice" class="notice" role="status" hidden></p>
+        <p id="sign-in-error" class="error" role="alert" hidden></p>
+        <form id="sign-in-form" method="post" action="/api/login">
+          <label>
+            Email address
+            <input id="sign-in-email" name="email" type="email" autocomplete="username"
+                   placeholder="you@example.com" required maxlength="254">
+          </label>
+          <label>
+            Password
+            <input name="password" type="password" autocomplete="current-password"
+                   placeholder="Enter your password" required maxlength="128">
+          </label>
+          <button id="sign-in-button" type="submit" class="primary">Sign in</button>
+        </form>
+        <p class="switch-mode">
+          New to Smart Laundromat?
+          <button id="show-register" type="button" class="text-button">Create an account</button>
+        </p>
+      </div>
+
+      <div id="register-panel" class="account-form" hidden>
+        <h1>Create an account</h1>
+        <p class="intro">Set up your account to see your reservations.</p>
+        <p id="register-error" class="error" role="alert" hidden></p>
+        <form id="register-form" method="post" action="/api/register">
+          <label>
+            Full name
+            <input id="register-name" name="name" autocomplete="name"
+                   placeholder="Jane Smith" required maxlength="100">
+          </label>
+          <label>
+            Email address
+            <input name="email" type="email" autocomplete="username"
+                   placeholder="you@example.com" required maxlength="254">
+          </label>
+          <label>
+            Password
+            <input name="password" type="password" autocomplete="new-password"
+                   placeholder="At least 8 characters" required minlength="8" maxlength="128">
+          </label>
+          <button id="register-button" type="submit" class="primary">Create account</button>
+        </form>
+        <p class="switch-mode">
+          Already have an account?
+          <button id="show-sign-in" type="button" class="text-button">Sign in</button>
+        </p>
+      </div>
+    </section>
+  </main>
+
+  <div id="dashboard" class="dashboard" hidden>
+    <header class="dashboard-header">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true"></span>
+        Smart Laundromat
+      </div>
+      <button id="sign-out" type="button" class="secondary">Sign out</button>
+    </header>
+    <main class="reservation-panel">
+      <h1 id="reservations-title" tabindex="-1">My reservations</h1>
+      <p id="customer-name" class="intro"></p>
+      <p id="sign-out-error" class="error" role="alert" hidden></p>
+      <p id="empty-reservations" class="empty">You don’t have any reservations yet.</p>
+      <ul id="reservation-list" class="reservation-list"></ul>
+    </main>
+  </div>
+
+  <template id="reservation-template">
+    <li>
+      <div>
+        <h2></h2>
+        <p><time class="start-time"></time> – <time class="end-time"></time></p>
+      </div>
+      <span class="reservation-status"></span>
+    </li>
+  </template>
+</body>
+</html>
