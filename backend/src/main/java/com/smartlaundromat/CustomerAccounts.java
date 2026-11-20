@@ -1,6 +1,5 @@
 package com.smartlaundromat;
 
-import java.security.Principal;
 import java.util.Locale;
 
 import jakarta.servlet.http.HttpServletRequest;
@@ -44,15 +43,6 @@ public class CustomerAccounts {
         return new AccountRole(request.isUserInRole("ADMIN") ? "ADMIN" : "CUSTOMER");
     }
 
-    @GetMapping("/admin")
-    public AdminPage admin(Principal account) {
-        String name = database.sql("SELECT name FROM customers WHERE email = :email")
-                .param("email", account.getName())
-                .query(String.class)
-                .single();
-        return new AdminPage(name);
-    }
-
     @PostMapping("/register")
     @ResponseStatus(HttpStatus.CREATED)
     public void register(@Valid @RequestBody Registration registration) {
@@ -88,5 +78,4 @@ public class CustomerAccounts {
     ) {}
 
     public record AccountRole(String role) {}
-    public record AdminPage(String name) {}
 }

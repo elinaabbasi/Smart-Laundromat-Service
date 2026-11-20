@@ -128,25 +128,21 @@ public class CustomerReservations {
                         row.getString("email"), row.getString("stripe_test_customer_id")))
                 .single();
 
-        // Find the selected machine.
+        // Keep availability and pricing stable until checkout finishes.
         Machine machine = database.sql("""
-                SELECT id, name, type, status
+                SELECT id, name, type, status, active
                 FROM machines
                 WHERE id = :machineId
+                FOR SHARE
                 """)
                 .param("machineId", request.machineId())
-                .query((row, index) -> new Machine(
-                        row.getLong("id"),
-                        row.getString("name"),
-                        row.getString("type"),
-                        row.getString("status")))
+                .query(Machine.class)
                 .optional()
                 .orElseThrow(() -> new ResponseStatusException(
                         HttpStatus.NOT_FOUND,
                         "Machine not found."));
 
-        // Only AVAILABLE machines can be reserved.
-        if (!machine.status().equals("AVAILABLE")) {
+        if (!machine.active() || !machine.status().equals("AVAILABLE")) {
             throw new ResponseStatusException(
                     HttpStatus.CONFLICT,
                     "This machine is currently unavailable.");
@@ -252,7 +248,8 @@ public class CustomerReservations {
             long id,
             String name,
             String type,
-            String status) {}
+            String status,
+            boolean active) {}
 
     public record ReservationsPage(
             String name,

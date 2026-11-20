@@ -9,7 +9,10 @@ function formatLabel(value) {
 }
 
 function showMessage(id, message = '') {
-  const element = get(id);
+  setMessage(get(id), message);
+}
+
+function setMessage(element, message = '') {
   element.textContent = message;
   element.hidden = !message;
 }
@@ -85,11 +88,15 @@ function showDashboard(account, isAdmin) {
   heading.textContent = isAdmin
     ? 'Admin dashboard'
     : `${account.name}'s Dashboard`;
-  showMessage('account-name', isAdmin ? 'Signed in as ' + account.name : '');
   get('customer-reservations').hidden = isAdmin;
   get('customer-machines').hidden = isAdmin;
+  get('admin-machines').hidden = !isAdmin;
+  get('admin-reservations').hidden = !isAdmin;
+  get('admin-payments').hidden = !isAdmin;
 
-  if (!isAdmin) {
+  if (isAdmin) {
+    showAdminDashboard(account);
+  } else {
     reservationPricing = account.pricing ?? defaultReservationPricing;
     showReservations(account);
     loadMachines();
@@ -132,15 +139,151 @@ async function loadAccount() {
   }
 }
 
-// Spring Security requires a fresh CSRF token for account changes.
-async function postAccount(url, body, contentType) {
+// Spring Security requires a CSRF token for write requests.
+async function submitWithCsrf(url, body, contentType, method = 'POST') {
   const response = await fetch('/api/csrf', { cache: 'no-store' });
   if (!response.ok) throw new Error('Could not connect. Please try again.');
 
   const { headerName, token } = await response.json();
   const headers = { [headerName]: token };
   if (contentType) headers['Content-Type'] = contentType;
-  return fetch(url, { method: 'POST', headers, body });
+  return fetch(url, { method, headers, body });
+}
+
+function adminMachineCard(machine) {
+  const card = get('admin-machine-template').content.firstElementChild.cloneNode(true);
+  const title = card.querySelector('h3');
+  const form = card.querySelector('form');
+  const fields = form.elements;
+  const fieldset = card.querySelector('fieldset');
+  const saveButton = card.querySelector('[type="submit"]');
+  const activationButton = card.querySelector('.machine-activation');
+  const inactiveLabel = card.querySelector('.machine-inactive');
+  const notice = card.querySelector('.notice');
+  const error = card.querySelector('.error');
+  const url = machine ? `/api/admin/machines/${machine.id}` : '/api/admin/machines';
+
+  function showActivation(active) {
+    inactiveLabel.hidden = active;
+    activationButton.value = active ? 'deactivate' : 'reactivate';
+    activationButton.textContent = active ? 'Deactivate machine' : 'Reactivate machine';
+    activationButton.hidden = false;
+  }
+
+  function showMachine(saved) {
+    title.textContent = saved.name;
+    fields.name.value = saved.name;
+    fields.type.value = saved.type;
+    fields.status.value = saved.status;
+    showActivation(saved.active);
+  }
+
+  async function save(action) {
+    const path = action ? `${url}/${action}` : url;
+    const method = machine && !action ? 'PUT' : 'POST';
+    const body = action ? undefined : JSON.stringify(Object.fromEntries(new FormData(form)));
+    let focusTarget = action ? activationButton : (machine ? saveButton : fields.name);
+    setMessage(notice);
+    setMessage(error);
+    fieldset.disabled = true;
+
+    try {
+      const response = await submitWithCsrf(path, body, action ? undefined : 'application/json', method);
+      if (response.status === 409) throw new Error('A machine already uses that name.');
+      if (response.status === 400) throw new Error('Enter a machine name and choose a valid type and status.');
+      if (response.status === 404) throw new Error('Machine not found. Reload the dashboard and try again.');
+      if (response.status === 401 || response.status === 403) {
+        throw new Error('Your session may have expired. Sign in again to manage machines.');
+      }
+      if (!response.ok) throw new Error('Could not save the machine. Please try again.');
+      const saved = await response.json();
+
+      if (action) {
+        showActivation(saved.active);
+        setMessage(notice, saved.active ? 'Machine reactivated.' : 'Machine deactivated.');
+      } else if (machine) {
+        showMachine(saved);
+        setMessage(notice, 'Changes saved.');
+      } else {
+        const savedCard = adminMachineCard(saved);
+        setMessage(savedCard.querySelector('.notice'), saved.name + ' added.');
+        card.replaceWith(savedCard);
+        focusTarget = savedCard.querySelector('input[name="name"]');
+      }
+    } catch (failure) {
+      setMessage(error, failure instanceof TypeError ? 'Could not connect. Please try again.' : failure.message);
+    } finally {
+      fieldset.disabled = false;
+      if (document.activeElement === document.body) {
+        focusTarget.focus();
+      }
+    }
+  }
+
+  saveButton.textContent = machine ? 'Save changes' : 'Add machine';
+  if (machine) {
+    showMachine(machine);
+  } else {
+    card.id = 'admin-machine-draft';
+    title.textContent = 'New machine';
+  }
+  form.addEventListener('submit', (event) => {
+    event.preventDefault();
+    save();
+  });
+  activationButton.addEventListener('click', () => {
+    save(activationButton.value);
+  });
+  return card;
+}
+
+get('admin-add-machine').addEventListener('click', () => {
+  let draft = get('admin-machine-draft');
+  if (!draft) {
+    draft = adminMachineCard();
+    get('admin-machine-list').append(draft);
+  }
+  draft.querySelector('input[name="name"]').focus();
+});
+
+function showAdminDashboard(account) {
+  const machines = get('admin-machine-list');
+  machines.replaceChildren();
+  for (const machine of account.machines) machines.append(adminMachineCard(machine));
+
+  const reservations = get('admin-reservation-list');
+  reservations.replaceChildren();
+  for (const reservation of account.reservations) {
+    const row = get('admin-reservation-template').content.cloneNode(true);
+    row.querySelector('.reservation-id').textContent = reservation.id;
+    row.querySelector('.reservation-machine').textContent = reservation.machine;
+    row.querySelector('.customer-name').textContent = reservation.customerName;
+    row.querySelector('.customer-email').textContent = reservation.customerEmail;
+    row.querySelector('.admin-reservation-status').textContent = formatLabel(reservation.status);
+    showReservationTime(row, reservation);
+    reservations.append(row);
+  }
+  get('admin-reservations-empty').hidden = account.reservations.length > 0;
+  get('admin-reservations-table').hidden = account.reservations.length === 0;
+
+  const payments = get('admin-payment-list');
+  payments.replaceChildren();
+  for (const payment of account.payments) {
+    const row = payments.insertRow();
+    const time = document.createElement('time');
+    time.dateTime = payment.attemptedAt;
+    time.textContent = new Date(payment.attemptedAt).toLocaleString(undefined, {
+      dateStyle: 'medium',
+      timeStyle: 'short'
+    });
+    row.insertCell().textContent = payment.id;
+    row.insertCell().textContent = payment.reservationId;
+    row.insertCell().textContent = formatPaymentAmount(payment) + ' ' + payment.currency;
+    row.insertCell().textContent = formatLabel(payment.status);
+    row.insertCell().append(time);
+  }
+  get('admin-payments-empty').hidden = account.payments.length > 0;
+  get('admin-payments-table').hidden = account.payments.length === 0;
 }
 
 registerForm.addEventListener('submit', async (event) => {
@@ -155,7 +298,7 @@ registerForm.addEventListener('submit', async (event) => {
   fields.email = fields.email.trim();
 
   try {
-    const response = await postAccount('/api/register', JSON.stringify(fields), 'application/json');
+    const response = await submitWithCsrf('/api/register', JSON.stringify(fields), 'application/json');
     if (response.status === 409) throw new Error('An account with this email already exists.');
     if (response.status === 400) throw new Error('Check your name and email and use a password with 8 to 128 characters.');
     if (!response.ok) throw new Error('We could not create your account. Please try again.');
@@ -184,7 +327,7 @@ signInForm.addEventListener('submit', async (event) => {
 
   try {
     const fields = new URLSearchParams(new FormData(signInForm));
-    const response = await postAccount('/api/login', fields);
+    const response = await submitWithCsrf('/api/login', fields);
     if (response.status === 401) throw new Error('Your email or password is incorrect.');
     if (!response.ok) throw new Error('We could not sign you in. Please try again.');
 
@@ -204,12 +347,15 @@ get('sign-out').addEventListener('click', async (event) => {
   showMessage('sign-out-error');
 
   try {
-    const response = await postAccount('/api/logout');
+    const response = await submitWithCsrf('/api/logout');
     if (!response.ok) throw new Error();
 
     showMessage('account-name');
     get('reservation-list').replaceChildren();
     get('reservation-form').reset();
+    get('admin-machine-list').replaceChildren();
+    get('admin-reservation-list').replaceChildren();
+    get('admin-payment-list').replaceChildren();
     showSignIn('You have signed out.');
     get('sign-in-email').focus();
   } catch {
@@ -475,7 +621,7 @@ reservationForm.addEventListener('submit', async (event) => {
 
   button.disabled = true;
   try {
-    const response = await postAccount(
+    const response = await submitWithCsrf(
       '/api/reservations',
       JSON.stringify(reservation),
       'application/json'
@@ -493,10 +639,8 @@ reservationForm.addEventListener('submit', async (event) => {
       throw new Error('Stripe did not confirm the test payment. Please try again.');
     }
 
-    if (response.status === 409) {
-      throw new Error(
-        'This machine is already reserved for the selected time.'
-      );
+    if (response.status === 404 || response.status === 409) {
+      throw new Error('This machine is unavailable or already reserved for the selected time.');
     }
 
     if (response.status === 400) {

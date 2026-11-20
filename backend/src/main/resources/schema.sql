@@ -38,9 +38,12 @@ CREATE TABLE IF NOT EXISTS machines (
         ))
 );
 
--- Add sample machines for testing UC2.
+ALTER TABLE machines ADD COLUMN IF NOT EXISTS active BOOLEAN NOT NULL DEFAULT TRUE;
+
+-- Seed an empty inventory. Renaming a sample machine must not recreate it on restart.
 INSERT INTO machines (name, type, status)
-VALUES
+SELECT name, type, status
+FROM (VALUES
     ('Washer 01', 'WASHER', 'AVAILABLE'),
     ('Washer 02', 'WASHER', 'AVAILABLE'),
     ('Washer 03', 'WASHER', 'IN_USE'),
@@ -48,6 +51,8 @@ VALUES
     ('Dryer 01', 'DRYER', 'AVAILABLE'),
     ('Dryer 02', 'DRYER', 'AVAILABLE'),
     ('Dryer 03', 'DRYER', 'RESERVED')
+) AS samples(name, type, status)
+WHERE NOT EXISTS (SELECT 1 FROM machines)
 ON CONFLICT (name) DO NOTHING;
 
 CREATE INDEX IF NOT EXISTS machines_type_status

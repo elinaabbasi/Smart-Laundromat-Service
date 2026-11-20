@@ -6,8 +6,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#f7faff">
   <title>Smart Laundromat</title>
-  <link rel="stylesheet" href="styles.css?v=5">
-  <script type="module" src="app.js?v=4"></script>
+  <link rel="stylesheet" href="styles.css?v=8">
+  <script type="module" src="app.js?v=9"></script>
 </head>
 
 <body>
@@ -70,6 +70,56 @@
       <h1 id="dashboard-title" tabindex="-1"></h1>
       <p id="account-name" class="intro" hidden></p>
       <p id="sign-out-error" class="error" role="alert" hidden></p>
+
+      <section id="admin-machines" aria-labelledby="admin-machines-title" hidden>
+        <div class="admin-machines-header">
+          <h2 id="admin-machines-title">Manage machines</h2>
+          <button id="admin-add-machine" type="button" class="primary" aria-controls="admin-machine-list">
+            Add Machine
+          </button>
+        </div>
+        <div id="admin-machine-list" class="machine-grid"></div>
+      </section>
+
+      <section id="admin-reservations" aria-labelledby="admin-reservations-title" hidden>
+        <h2 id="admin-reservations-title">Reservations</h2>
+        <p id="admin-reservations-empty" class="empty" hidden>No reservations yet.</p>
+        <div id="admin-reservations-table" class="admin-table-scroll" tabindex="0" role="region"
+          aria-labelledby="admin-reservations-title">
+          <table class="admin-table" aria-labelledby="admin-reservations-title">
+            <thead>
+              <tr>
+                <th scope="col">ID</th>
+                <th scope="col">Machine</th>
+                <th scope="col">Customer</th>
+                <th scope="col">Scheduled time</th>
+                <th scope="col">Status</th>
+              </tr>
+            </thead>
+            <tbody id="admin-reservation-list"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="admin-payments" aria-labelledby="admin-payments-title" hidden>
+        <h2 id="admin-payments-title">Payments</h2>
+        <p id="admin-payments-empty" class="empty" hidden>No payments recorded yet.</p>
+        <div id="admin-payments-table" class="admin-table-scroll" tabindex="0" role="region"
+          aria-labelledby="admin-payments-title">
+          <table class="admin-table" aria-labelledby="admin-payments-title">
+            <thead>
+              <tr>
+                <th scope="col">ID</th>
+                <th scope="col">Reservation ID</th>
+                <th scope="col">Amount</th>
+                <th scope="col">Status</th>
+                <th scope="col">Attempted at</th>
+              </tr>
+            </thead>
+            <tbody id="admin-payment-list"></tbody>
+          </table>
+        </div>
+      </section>
 
       <!-- UC2: Machine browsing and selection -->
       <section id="customer-machines" hidden>
@@ -185,6 +235,55 @@
       </section>
     </main>
   </div>
+
+  <template id="admin-machine-template">
+    <article class="machine-card admin-machine">
+      <h3></h3>
+      <p class="machine-inactive" hidden>Inactive</p>
+      <form>
+        <fieldset class="admin-machine-fields">
+          <label>Machine name
+            <input name="name" maxlength="100" required>
+          </label>
+          <label>Type
+            <span class="select-with-arrow">
+              <select name="type">
+                <option value="WASHER">Washer</option>
+                <option value="DRYER">Dryer</option>
+              </select>
+            </span>
+          </label>
+          <label>Status
+            <span class="select-with-arrow">
+              <select name="status">
+                <option value="AVAILABLE">Available</option>
+                <option value="RESERVED">Reserved</option>
+                <option value="IN_USE">In Use</option>
+                <option value="OUT_OF_SERVICE">Out of Service</option>
+              </select>
+            </span>
+          </label>
+          <button type="submit" class="primary"></button>
+          <button type="button" class="secondary machine-activation" hidden></button>
+        </fieldset>
+      </form>
+      <p class="notice" role="status" hidden></p>
+      <p class="error" role="alert" hidden></p>
+    </article>
+  </template>
+
+  <template id="admin-reservation-template">
+    <tr>
+      <td class="reservation-id"></td>
+      <td class="reservation-machine"></td>
+      <td>
+        <div class="customer-name"></div>
+        <div class="customer-email"></div>
+      </td>
+      <td class="reservation-time"><time class="start-time"></time> – <time class="end-time"></time></td>
+      <td class="admin-reservation-status"></td>
+    </tr>
+  </template>
 
   <template id="reservation-template">
     <li>

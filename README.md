@@ -1,6 +1,6 @@
 # Smart Laundromat
 
-A small customer portal built with HTML, CSS, and JavaScript, with a Spring Boot API and a PostgreSQL database. Customers register, sign in with their email and password, view their own reservations, and sign out.
+A laundromat portal built with HTML, CSS, and JavaScript, with a Spring Boot API and a PostgreSQL database. Customers can book machines and view their reservations. Administrators manage machines and review reservations and payments.
 
 ## Run locally
 
@@ -55,9 +55,15 @@ WHERE email = 'admin@example.com';
 
 Sign in with that account to open the Admin dashboard. If it was already signed in, sign out and back in to load the new role.
 
+Select **Add Machine** at the top of **Manage machines** to open a form at the end of the machine list. Enter a name, choose a type and status, then select **Add machine** on the card. To edit an existing machine, change its details and select **Save changes**. Deactivated machines stay visible to customers as **Unavailable**, with booking disabled. Existing reservations and payments stay available, and the machine remains marked **Inactive** in the dashboard.
+
+Select **Reactivate machine** on an inactive machine to restore its saved status in the customer list. Customers can book it when that status is **Available**.
+
+The **Reservations** table shows customers, scheduled times, and reservation statuses. The **Payments** table shows each recorded attempt with its reservation ID, amount, currency, outcome, and timestamp. Reload the dashboard to see new activity.
+
 ## How it works
 
 - The frontend files are in `backend/src/main/resources/static`. `index.html` contains the forms and reservation layout, `styles.css` sets the appearance, and `app.js` connects the forms to the API.
 - Spring Boot creates the `customers` and `reservations` tables on startup. A reservation belongs to one customer through `customer_id`.
 - Spring Security hashes passwords with PBKDF2 and loads the saved role into the session at sign-in. The browser sends the session cookie with each request.
-- The Admin endpoint requires the Admin role. The reservations endpoint requires the Customer role and uses the signed-in email to return that customer’s reservations. Signing out ends the session.
+- The admin dashboard and machine management endpoints require the Admin role. The customer reservations endpoint requires the Customer role and uses the signed-in email to return that customer’s reservations. Signing out ends the session.
