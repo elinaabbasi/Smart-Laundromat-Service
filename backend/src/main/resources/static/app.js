@@ -3,8 +3,16 @@ const get = (id) => document.getElementById(id);
 const signInForm = get('sign-in-form');
 const registerForm = get('register-form');
 
+function formatLabel(value) {
+  return value.replaceAll('_', ' ').toLowerCase()
+    .replace(/\b[a-z]/g, (letter) => letter.toUpperCase());
+}
+
 function showMessage(id, message = '') {
-  const element = get(id);
+  setMessage(get(id), message);
+}
+
+function setMessage(element, message = '') {
   element.textContent = message;
   element.hidden = !message;
 }
@@ -19,6 +27,40 @@ function showSignIn(message = '') {
   showMessage('sign-in-notice', message);
 }
 
+function formatPaymentAmount(payment) {
+  return new Intl.NumberFormat('en-CA', {
+    style: 'currency',
+    currency: payment.currency
+  }).format(payment.amountCents / 100);
+}
+
+function showReservationTime(row, reservation) {
+  const start = new Date(reservation.startsAt);
+  const end = new Date(reservation.endsAt);
+  const startTime = row.querySelector('.start-time');
+  const endTime = row.querySelector('.end-time');
+  startTime.dateTime = reservation.startsAt;
+  endTime.dateTime = reservation.endsAt;
+
+  if (localDateValue(start) !== localDateValue(end)) {
+    const dateOptions = { dateStyle: 'medium', timeStyle: 'short' };
+    startTime.textContent = start.toLocaleString(undefined, dateOptions);
+    endTime.textContent = end.toLocaleString(undefined, dateOptions);
+    return;
+  }
+
+  const timeOptions = { hour: 'numeric', minute: '2-digit' };
+  const sameOffset = start.getTimezoneOffset() === end.getTimezoneOffset();
+  if (!sameOffset) timeOptions.timeZoneName = 'short';
+  const startLabel = start.toLocaleTimeString('en-US', timeOptions).replace(/\s/g, ' ');
+  const samePeriod = (start.getHours() < 12) === (end.getHours() < 12);
+  startTime.textContent = sameOffset && samePeriod ? startLabel.replace(/ [AP]M$/, '') : startLabel;
+  endTime.textContent = end.toLocaleTimeString('en-US', timeOptions).replace(/\s/g, ' ');
+
+  const date = start.toLocaleDateString('en-US', { dateStyle: 'medium' });
+  row.querySelector('.reservation-time').replaceChildren(date + ' • ', startTime, '–', endTime);
+}
+
 function showReservations(customer) {
   const list = get('reservation-list');
   const template = get('reservation-template');
@@ -26,37 +68,36 @@ function showReservations(customer) {
 
   for (const reservation of customer.reservations) {
     const row = template.content.cloneNode(true);
-    row.querySelector('h2').textContent = reservation.machine;
-    row.querySelector('.reservation-status').textContent = reservation.status;
+    row.querySelector('h3').textContent = reservation.machine;
+    row.querySelector('.reservation-status').textContent = formatLabel(reservation.status);
 
-    const start = new Date(reservation.startsAt);
-    const end = new Date(reservation.endsAt);
-    const startTime = row.querySelector('.start-time');
-    const endTime = row.querySelector('.end-time');
-    const dateOptions = { dateStyle: 'medium', timeStyle: 'short' };
-
-    startTime.dateTime = reservation.startsAt;
-    startTime.textContent = start.toLocaleString(undefined, dateOptions);
-    endTime.dateTime = reservation.endsAt;
-    endTime.textContent = end.toLocaleString(undefined, dateOptions);
+    showReservationTime(row, reservation);
+    if (reservation.payment?.status === 'SUCCEEDED') {
+      const summary = row.querySelector('.payment-summary');
+      summary.textContent = 'Payment completed · ' + formatPaymentAmount(reservation.payment);
+      summary.hidden = false;
+    }
     list.append(row);
   }
 
   get('empty-reservations').hidden = customer.reservations.length > 0;
 }
 
-
 function showDashboard(account, isAdmin) {
   const heading = get('dashboard-title');
   heading.textContent = isAdmin
     ? 'Admin dashboard'
-    : 'My reservations';
-  get('account-name').textContent =
-    'Signed in as ' + account.name;
+    : `${account.name}'s Dashboard`;
   get('customer-reservations').hidden = isAdmin;
   get('customer-machines').hidden = isAdmin;
+  get('admin-machines').hidden = !isAdmin;
+  get('admin-reservations').hidden = !isAdmin;
+  get('admin-payments').hidden = !isAdmin;
 
-  if (!isAdmin) {
+  if (isAdmin) {
+    showAdminDashboard(account);
+  } else {
+    reservationPricing = account.pricing ?? defaultReservationPricing;
     showReservations(account);
     loadMachines();
   }
@@ -98,15 +139,151 @@ async function loadAccount() {
   }
 }
 
-// Spring Security requires a fresh CSRF token for account changes.
-async function postAccount(url, body, contentType) {
+// Spring Security requires a CSRF token for write requests.
+async function submitWithCsrf(url, body, contentType, method = 'POST') {
   const response = await fetch('/api/csrf', { cache: 'no-store' });
   if (!response.ok) throw new Error('Could not connect. Please try again.');
 
   const { headerName, token } = await response.json();
   const headers = { [headerName]: token };
   if (contentType) headers['Content-Type'] = contentType;
-  return fetch(url, { method: 'POST', headers, body });
+  return fetch(url, { method, headers, body });
+}
+
+function adminMachineCard(machine) {
+  const card = get('admin-machine-template').content.firstElementChild.cloneNode(true);
+  const title = card.querySelector('h3');
+  const form = card.querySelector('form');
+  const fields = form.elements;
+  const fieldset = card.querySelector('fieldset');
+  const saveButton = card.querySelector('[type="submit"]');
+  const activationButton = card.querySelector('.machine-activation');
+  const inactiveLabel = card.querySelector('.machine-inactive');
+  const notice = card.querySelector('.notice');
+  const error = card.querySelector('.error');
+  const url = machine ? `/api/admin/machines/${machine.id}` : '/api/admin/machines';
+
+  function showActivation(active) {
+    inactiveLabel.hidden = active;
+    activationButton.value = active ? 'deactivate' : 'reactivate';
+    activationButton.textContent = active ? 'Deactivate machine' : 'Reactivate machine';
+    activationButton.hidden = false;
+  }
+
+  function showMachine(saved) {
+    title.textContent = saved.name;
+    fields.name.value = saved.name;
+    fields.type.value = saved.type;
+    fields.status.value = saved.status;
+    showActivation(saved.active);
+  }
+
+  async function save(action) {
+    const path = action ? `${url}/${action}` : url;
+    const method = machine && !action ? 'PUT' : 'POST';
+    const body = action ? undefined : JSON.stringify(Object.fromEntries(new FormData(form)));
+    let focusTarget = action ? activationButton : (machine ? saveButton : fields.name);
+    setMessage(notice);
+    setMessage(error);
+    fieldset.disabled = true;
+
+    try {
+      const response = await submitWithCsrf(path, body, action ? undefined : 'application/json', method);
+      if (response.status === 409) throw new Error('A machine already uses that name.');
+      if (response.status === 400) throw new Error('Enter a machine name and choose a valid type and status.');
+      if (response.status === 404) throw new Error('Machine not found. Reload the dashboard and try again.');
+      if (response.status === 401 || response.status === 403) {
+        throw new Error('Your session may have expired. Sign in again to manage machines.');
+      }
+      if (!response.ok) throw new Error('Could not save the machine. Please try again.');
+      const saved = await response.json();
+
+      if (action) {
+        showActivation(saved.active);
+        setMessage(notice, saved.active ? 'Machine reactivated.' : 'Machine deactivated.');
+      } else if (machine) {
+        showMachine(saved);
+        setMessage(notice, 'Changes saved.');
+      } else {
+        const savedCard = adminMachineCard(saved);
+        setMessage(savedCard.querySelector('.notice'), saved.name + ' added.');
+        card.replaceWith(savedCard);
+        focusTarget = savedCard.querySelector('input[name="name"]');
+      }
+    } catch (failure) {
+      setMessage(error, failure instanceof TypeError ? 'Could not connect. Please try again.' : failure.message);
+    } finally {
+      fieldset.disabled = false;
+      if (document.activeElement === document.body) {
+        focusTarget.focus();
+      }
+    }
+  }
+
+  saveButton.textContent = machine ? 'Save changes' : 'Add machine';
+  if (machine) {
+    showMachine(machine);
+  } else {
+    card.id = 'admin-machine-draft';
+    title.textContent = 'New machine';
+  }
+  form.addEventListener('submit', (event) => {
+    event.preventDefault();
+    save();
+  });
+  activationButton.addEventListener('click', () => {
+    save(activationButton.value);
+  });
+  return card;
+}
+
+get('admin-add-machine').addEventListener('click', () => {
+  let draft = get('admin-machine-draft');
+  if (!draft) {
+    draft = adminMachineCard();
+    get('admin-machine-list').append(draft);
+  }
+  draft.querySelector('input[name="name"]').focus();
+});
+
+function showAdminDashboard(account) {
+  const machines = get('admin-machine-list');
+  machines.replaceChildren();
+  for (const machine of account.machines) machines.append(adminMachineCard(machine));
+
+  const reservations = get('admin-reservation-list');
+  reservations.replaceChildren();
+  for (const reservation of account.reservations) {
+    const row = get('admin-reservation-template').content.cloneNode(true);
+    row.querySelector('.reservation-id').textContent = reservation.id;
+    row.querySelector('.reservation-machine').textContent = reservation.machine;
+    row.querySelector('.customer-name').textContent = reservation.customerName;
+    row.querySelector('.customer-email').textContent = reservation.customerEmail;
+    row.querySelector('.admin-reservation-status').textContent = formatLabel(reservation.status);
+    showReservationTime(row, reservation);
+    reservations.append(row);
+  }
+  get('admin-reservations-empty').hidden = account.reservations.length > 0;
+  get('admin-reservations-table').hidden = account.reservations.length === 0;
+
+  const payments = get('admin-payment-list');
+  payments.replaceChildren();
+  for (const payment of account.payments) {
+    const row = payments.insertRow();
+    const time = document.createElement('time');
+    time.dateTime = payment.attemptedAt;
+    time.textContent = new Date(payment.attemptedAt).toLocaleString(undefined, {
+      dateStyle: 'medium',
+      timeStyle: 'short'
+    });
+    row.insertCell().textContent = payment.id;
+    row.insertCell().textContent = payment.reservationId;
+    row.insertCell().textContent = formatPaymentAmount(payment) + ' ' + payment.currency;
+    row.insertCell().textContent = formatLabel(payment.status);
+    row.insertCell().append(time);
+  }
+  get('admin-payments-empty').hidden = account.payments.length > 0;
+  get('admin-payments-table').hidden = account.payments.length === 0;
 }
 
 registerForm.addEventListener('submit', async (event) => {
@@ -121,7 +298,7 @@ registerForm.addEventListener('submit', async (event) => {
   fields.email = fields.email.trim();
 
   try {
-    const response = await postAccount('/api/register', JSON.stringify(fields), 'application/json');
+    const response = await submitWithCsrf('/api/register', JSON.stringify(fields), 'application/json');
     if (response.status === 409) throw new Error('An account with this email already exists.');
     if (response.status === 400) throw new Error('Check your name and email and use a password with 8 to 128 characters.');
     if (!response.ok) throw new Error('We could not create your account. Please try again.');
@@ -150,7 +327,7 @@ signInForm.addEventListener('submit', async (event) => {
 
   try {
     const fields = new URLSearchParams(new FormData(signInForm));
-    const response = await postAccount('/api/login', fields);
+    const response = await submitWithCsrf('/api/login', fields);
     if (response.status === 401) throw new Error('Your email or password is incorrect.');
     if (!response.ok) throw new Error('We could not sign you in. Please try again.');
 
@@ -170,11 +347,15 @@ get('sign-out').addEventListener('click', async (event) => {
   showMessage('sign-out-error');
 
   try {
-    const response = await postAccount('/api/logout');
+    const response = await submitWithCsrf('/api/logout');
     if (!response.ok) throw new Error();
 
-    get('account-name').textContent = '';
+    showMessage('account-name');
     get('reservation-list').replaceChildren();
+    get('reservation-form').reset();
+    get('admin-machine-list').replaceChildren();
+    get('admin-reservation-list').replaceChildren();
+    get('admin-payment-list').replaceChildren();
     showSignIn('You have signed out.');
     get('sign-in-email').focus();
   } catch {
@@ -203,7 +384,18 @@ get('retry').addEventListener('click', loadAccount);
 
 // UC2: Browse and select machines.
 
-let selectedMachineId = null;
+const reservationDate = get('reservation-date');
+const reservationStart = get('reservation-start');
+const reservationStartOccurrence = get('reservation-start-occurrence');
+const reservationForm = get('reservation-form');
+const defaultReservationPricing = {
+  currency: 'CAD',
+  blockMinutes: 30,
+  blockRatesCents: { WASHER: 500, DRYER: 300 },
+  maxBlocks: 8
+};
+let selectedMachine = null;
+let reservationPricing;
 
 async function loadMachines() {
   const list = get('machine-list');
@@ -211,8 +403,7 @@ async function loadMachines() {
   const availableOnly = get('available-only').checked;
 
   showMessage('machine-error');
-  showMessage('selected-machine');
-  selectedMachineId = null;
+  selectedMachine = null;
   get('reservation-form-panel').hidden = true;
   get('reservation-form').reset();
   showMessage('reservation-error');
@@ -253,11 +444,10 @@ async function loadMachines() {
       title.textContent = machine.name;
 
       const typeText = document.createElement('p');
-      typeText.textContent = 'Type: ' + machine.type;
+      typeText.textContent = 'Type: ' + formatLabel(machine.type);
 
       const status = document.createElement('p');
-      status.textContent = 'Status: ' +
-        machine.status.replaceAll('_', ' ');
+      status.textContent = 'Status: ' + formatLabel(machine.status);
 
       const button = document.createElement('button');
       button.type = 'button';
@@ -271,16 +461,14 @@ async function loadMachines() {
         button.textContent = 'Unavailable';
       }
 
-            
+
       button.addEventListener('click', () => {
-        selectedMachineId = machine.id;
-
-        showMessage(
-          'selected-machine',
-          machine.name + ' selected. Choose your reservation time below.'
-        );
-
+        selectedMachine = machine;
+        const heading = get('selected-machine');
+        heading.textContent = 'Reserve ' + machine.name;
         get('reservation-form-panel').hidden = false;
+        prepareReservationSchedule();
+        heading.focus();
 
         showMessage('reservation-error');
         showMessage('reservation-success');
@@ -310,57 +498,149 @@ get('available-only').addEventListener(
 
 /* UC3: Create a machine reservation. */
 
-get('reservation-form').addEventListener('submit', async (event) => {
+function selectedReservationBlocks() {
+  const minutes = Number(reservationForm.elements.durationMinutes.value);
+  return minutes / reservationPricing.blockMinutes;
+}
+
+function localDateTimeValue(date) {
+  return new Date(date.getTime() - date.getTimezoneOffset() * 60_000).toISOString().slice(0, 16);
+}
+
+function localDateValue(date) {
+  return localDateTimeValue(date).slice(0, 10);
+}
+
+function prepareReservationSchedule() {
+  const now = Date.now();
+  reservationDate.min = localDateValue(new Date(now));
+  if (!reservationDate.value || reservationDate.value < reservationDate.min) {
+    const nextMinute = new Date((Math.floor(now / 60_000) + 1) * 60_000);
+    reservationDate.value = localDateValue(nextMinute);
+  }
+  updateReservationSummary();
+}
+
+function reservationStartTimes() {
+  const localStart = `${reservationDate.value}T${reservationStart.value}`;
+  const start = new Date(localStart);
+  // A nonexistent local time can be shifted forward by the Date constructor.
+  if (!Number.isFinite(start.getTime()) || localDateTimeValue(start) !== localStart) return [];
+
+  // A backward clock change can give the same local time two UTC offsets.
+  const followingDay = new Date(start);
+  followingDay.setDate(followingDay.getDate() + 1);
+  const offsetChange = followingDay.getTimezoneOffset() - start.getTimezoneOffset();
+  if (offsetChange > 0) {
+    const laterStart = new Date(start.getTime() + offsetChange * 60_000);
+    if (localDateTimeValue(laterStart) === localStart) return [start, laterStart];
+  }
+  return [start];
+}
+
+function reservationEndTime(start, blocks) {
+  return new Date(start.getTime() + blocks * reservationPricing.blockMinutes * 60_000);
+}
+
+function updateReservationSummary() {
+  if (!selectedMachine) return;
+  const { currency, blockMinutes, blockRatesCents } = reservationPricing;
+  const rate = blockRatesCents[selectedMachine.type];
+  const blockPrice = formatPaymentAmount({ amountCents: rate, currency });
+  const blocks = selectedReservationBlocks();
+  const [firstStart, laterStart] = reservationStartTimes();
+  get('reservation-start-occurrence-field').hidden = !laterStart;
+  if (!laterStart) reservationStartOccurrence.value = 'first';
+  const start = reservationStartOccurrence.value === 'second' ? laterStart : firstStart;
+  let endLabel = '—';
+  if (start && start > new Date() && blocks > 0) {
+    const end = reservationEndTime(start, blocks);
+    const endFormat = { hour: 'numeric', minute: '2-digit' };
+    if (localDateValue(end) !== localDateValue(start)) {
+      endFormat.month = 'short';
+      endFormat.day = 'numeric';
+    }
+    if (start.getTimezoneOffset() !== end.getTimezoneOffset()) {
+      endFormat.timeZoneName = 'short';
+    }
+    endLabel = end.toLocaleString(undefined, endFormat);
+  }
+  get('reservation-end').value = endLabel;
+  get('reservation-summary').textContent = `${blockPrice} per ${blockMinutes} min`;
+  get('reservation-total').textContent = formatPaymentAmount({ amountCents: blocks * rate, currency });
+}
+
+reservationDate.addEventListener('input', updateReservationSummary);
+reservationStart.addEventListener('input', updateReservationSummary);
+reservationStartOccurrence.addEventListener('change', updateReservationSummary);
+get('reservation-duration').addEventListener('change', updateReservationSummary);
+
+reservationForm.addEventListener('submit', async (event) => {
   event.preventDefault();
 
-  if (selectedMachineId === null) {
+  if (!selectedMachine) {
     showMessage('reservation-error', 'Please select a machine first.');
     return;
   }
 
   const button = get('reserve-button');
-  button.disabled = true;
+  if (button.disabled) return;
 
   showMessage('reservation-error');
   showMessage('reservation-success');
 
-  const startValue = get('reservation-start').value;
-  const endValue = get('reservation-end').value;
-
-  const start = new Date(startValue);
-  const end = new Date(endValue);
-
-  if (
-    !Number.isFinite(start.getTime()) ||
-    !Number.isFinite(end.getTime()) ||
-    start <= new Date() ||
-    end <= start
-  ) {
-    showMessage(
-      'reservation-error',
-      'Choose a future start time and an end time after the start.'
-    );
-    button.disabled = false;
+  const [firstStart, laterStart] = reservationStartTimes();
+  const start = reservationStartOccurrence.value === 'second' ? laterStart : firstStart;
+  if (!start || start <= new Date()) {
+    updateReservationSummary();
+    showMessage('reservation-error', 'Choose a valid future start time.');
     return;
   }
 
+  const blocks = selectedReservationBlocks();
+  if (!Number.isInteger(blocks) || blocks < 1 || blocks > reservationPricing.maxBlocks) {
+    showMessage('reservation-error', 'Choose a duration of 30 minutes to four hours.');
+    return;
+  }
+
+  const dummyFields = get('reservation-form').querySelectorAll('.test-card input');
+  const blankField = Array.from(dummyFields).find((field) => !field.value.trim());
+  if (blankField) {
+    showMessage('reservation-error', 'Complete all four payment fields.');
+    blankField.focus();
+    return;
+  }
+
+  // The text fields stay in the browser. Only a fixed test method goes to the server.
   const reservation = {
-    machineId: selectedMachineId,
+    machineId: selectedMachine.id,
     startsAt: start.toISOString(),
-    endsAt: end.toISOString()
+    endsAt: reservationEndTime(start, blocks).toISOString(),
+    testPaymentMethod: get('test-payment-decline').checked ? 'pm_card_visa_chargeDeclined' : 'pm_card_visa'
   };
 
+  button.disabled = true;
   try {
-    const response = await postAccount(
+    const response = await submitWithCsrf(
       '/api/reservations',
       JSON.stringify(reservation),
       'application/json'
     );
 
-    if (response.status === 409) {
-      throw new Error(
-        'This machine is already reserved for the selected time.'
-      );
+    if (response.status === 402) {
+      throw new Error('Payment declined. Please try again.');
+    }
+
+    if (response.status === 503) {
+      throw new Error('Stripe test payments are unavailable. Check the server’s test key.');
+    }
+
+    if (response.status === 502) {
+      throw new Error('Stripe did not confirm the test payment. Please try again.');
+    }
+
+    if (response.status === 404 || response.status === 409) {
+      throw new Error('This machine is unavailable or already reserved for the selected time.');
     }
 
     if (response.status === 400) {
@@ -373,10 +653,11 @@ get('reservation-form').addEventListener('submit', async (event) => {
 
     showMessage(
       'reservation-success',
-      'Your reservation has been confirmed!'
+      'Payment accepted. Your reservation is confirmed.'
     );
 
     get('reservation-form').reset();
+    if (selectedMachine) prepareReservationSchedule();
 
     const reservationsResponse = await fetch(
       '/api/reservations',

@@ -45,20 +45,16 @@ public class Machines {
         }
 
         return database.sql("""
-                SELECT id, name, type, status
+                SELECT id, name, type,
+                       CASE WHEN active THEN status ELSE 'UNAVAILABLE' END AS status
                 FROM machines
-                WHERE (CAST(:type AS VARCHAR) IS NULL OR type = :type)      
-                       AND (:availableOnly = FALSE
-                       OR status = 'AVAILABLE')
+                WHERE (CAST(:type AS VARCHAR) IS NULL OR type = :type)
+                  AND (:availableOnly = FALSE OR (active AND status = 'AVAILABLE'))
                 ORDER BY id
                 """)
                 .param("type", machineType)
                 .param("availableOnly", availableOnly)
-                .query((row, index) -> new Machine(
-                        row.getLong("id"),
-                        row.getString("name"),
-                        row.getString("type"),
-                        row.getString("status")))
+                .query(Machine.class)
                 .list();
     }
 
@@ -67,16 +63,13 @@ public class Machines {
     public Machine getMachine(@PathVariable long id) {
 
         return database.sql("""
-                SELECT id, name, type, status
+                SELECT id, name, type,
+                       CASE WHEN active THEN status ELSE 'UNAVAILABLE' END AS status
                 FROM machines
                 WHERE id = :id
                 """)
                 .param("id", id)
-                .query((row, index) -> new Machine(
-                        row.getLong("id"),
-                        row.getString("name"),
-                        row.getString("type"),
-                        row.getString("status")))
+                .query(Machine.class)
                 .optional()
                 .orElseThrow(() ->
                         new ResponseStatusException(

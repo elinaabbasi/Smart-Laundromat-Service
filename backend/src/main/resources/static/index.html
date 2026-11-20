@@ -6,8 +6,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#f7faff">
   <title>Smart Laundromat</title>
-  <link rel="stylesheet" href="styles.css">
-  <script type="module" src="app.js"></script>
+  <link rel="stylesheet" href="styles.css?v=8">
+  <script type="module" src="app.js?v=9"></script>
 </head>
 
 <body>
@@ -66,100 +66,233 @@
       <div class="brand">Smart Laundromat</div>
       <button id="sign-out" type="button" class="secondary">Sign out</button>
     </header>
-    <main class="reservation-panel">
+    <main class="dashboard-content">
       <h1 id="dashboard-title" tabindex="-1"></h1>
-      <p id="account-name" class="intro"></p>
+      <p id="account-name" class="intro" hidden></p>
       <p id="sign-out-error" class="error" role="alert" hidden></p>
 
-    <!-- UC2: Machine browsing and selection -->
-    <section id="customer-machines" hidden>
-      <h2>Find a Machine</h2>
-      <p class="intro">
-        Browse washers and dryers and check availability.
-      </p>
-
-      <div class="machine-filters">
-        <label for="machine-type">Machine type</label>
-        <select id="machine-type">
-          <option value="">All machines</option>
-          <option value="WASHER">Washers</option>
-          <option value="DRYER">Dryers</option>
-        </select>
-
-        <label class="availability-filter">
-          <input type="checkbox" id="available-only">
-          Available only
-        </label>
-      </div>
-
-      <p id="machine-error" class="error"
-        role="alert" hidden></p>
-
-      <p id="machine-loading" role="status" hidden>
-        Loading machines...
-      </p>
-
-      <div id="machine-list" class="machine-grid"></div>
-
-      <p id="machine-empty" class="empty" hidden>
-        No machines match your filters.
-      </p>
-
-      
-      <p id="selected-machine" class="notice"
-        role="status" hidden></p>
-
-      <!-- UC3: Reservation scheduling -->
-      <div id="reservation-form-panel" hidden>
-        <h3>Reserve Selected Machine</h3>
-
-        <form id="reservation-form">
-          <label for="reservation-start">Start date and time</label>
-          <input
-            id="reservation-start"
-            type="datetime-local"
-            required
-          >
-
-          <label for="reservation-end">End date and time</label>
-          <input
-            id="reservation-end"
-            type="datetime-local"
-            required
-          >
-
-          <button
-            id="reserve-button"
-            type="submit"
-            class="primary"
-          >
-            Confirm Reservation
+      <section id="admin-machines" aria-labelledby="admin-machines-title" hidden>
+        <div class="admin-machines-header">
+          <h2 id="admin-machines-title">Manage machines</h2>
+          <button id="admin-add-machine" type="button" class="primary" aria-controls="admin-machine-list">
+            Add Machine
           </button>
-        </form>
-
-        <p id="reservation-error" class="error"
-          role="alert" hidden></p>
-
-        <p id="reservation-success" class="notice"
-          role="status" hidden></p>
-      </div>
+        </div>
+        <div id="admin-machine-list" class="machine-grid"></div>
       </section>
 
+      <section id="admin-reservations" aria-labelledby="admin-reservations-title" hidden>
+        <h2 id="admin-reservations-title">Reservations</h2>
+        <p id="admin-reservations-empty" class="empty" hidden>No reservations yet.</p>
+        <div id="admin-reservations-table" class="admin-table-scroll" tabindex="0" role="region"
+          aria-labelledby="admin-reservations-title">
+          <table class="admin-table" aria-labelledby="admin-reservations-title">
+            <thead>
+              <tr>
+                <th scope="col">ID</th>
+                <th scope="col">Machine</th>
+                <th scope="col">Customer</th>
+                <th scope="col">Scheduled time</th>
+                <th scope="col">Status</th>
+              </tr>
+            </thead>
+            <tbody id="admin-reservation-list"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="admin-payments" aria-labelledby="admin-payments-title" hidden>
+        <h2 id="admin-payments-title">Payments</h2>
+        <p id="admin-payments-empty" class="empty" hidden>No payments recorded yet.</p>
+        <div id="admin-payments-table" class="admin-table-scroll" tabindex="0" role="region"
+          aria-labelledby="admin-payments-title">
+          <table class="admin-table" aria-labelledby="admin-payments-title">
+            <thead>
+              <tr>
+                <th scope="col">ID</th>
+                <th scope="col">Reservation ID</th>
+                <th scope="col">Amount</th>
+                <th scope="col">Status</th>
+                <th scope="col">Attempted at</th>
+              </tr>
+            </thead>
+            <tbody id="admin-payment-list"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- UC2: Machine browsing and selection -->
+      <section id="customer-machines" hidden>
+        <h2>Find a Machine</h2>
+        <p class="intro">
+          Browse washers and dryers and check availability.
+        </p>
+
+        <div class="machine-filters">
+          <label for="machine-type">Machine Type</label>
+          <div class="machine-type-select select-with-arrow">
+            <select id="machine-type">
+              <option value="">All Machines</option>
+              <option value="Washer">Washers</option>
+              <option value="Dryer">Dryers</option>
+            </select>
+          </div>
+
+          <label class="availability-filter">
+            <input type="checkbox" id="available-only">
+            Available Only
+          </label>
+        </div>
+
+        <p id="machine-error" class="error" role="alert" hidden></p>
+
+        <p id="machine-loading" role="status" hidden>
+          Loading machines...
+        </p>
+
+        <div id="machine-list" class="machine-grid"></div>
+
+        <p id="machine-empty" class="empty" hidden>
+          No machines match your filters.
+        </p>
+
+        <!-- UC3: Reservation scheduling -->
+        <section id="reservation-form-panel" aria-labelledby="selected-machine" hidden>
+          <h3 id="selected-machine" tabindex="-1"></h3>
+
+          <form id="reservation-form" autocomplete="off">
+            <div class="reservation-schedule">
+              <div>
+                <label for="reservation-date">Date</label>
+                <input id="reservation-date" type="date" required>
+              </div>
+              <div>
+                <label for="reservation-start">Start time</label>
+                <input id="reservation-start" type="time" required>
+              </div>
+              <div>
+                <label for="reservation-duration">Duration</label>
+                <div class="select-with-arrow">
+                  <select id="reservation-duration" name="durationMinutes" required>
+                    <option value="30" selected>30 mins</option>
+                    <option value="60">60 mins</option>
+                    <option value="90">90 mins</option>
+                    <option value="120">120 mins</option>
+                    <option value="150">150 mins</option>
+                    <option value="180">180 mins</option>
+                    <option value="210">210 mins</option>
+                    <option value="240">240 mins</option>
+                  </select>
+                </div>
+              </div>
+              <div>
+                <label for="reservation-end">End time</label>
+                <output id="reservation-end"
+                  for="reservation-date reservation-start reservation-start-occurrence reservation-duration">—</output>
+              </div>
+              <div id="reservation-start-occurrence-field" hidden>
+                <label for="reservation-start-occurrence">Repeated start time</label>
+                <div class="select-with-arrow">
+                  <select id="reservation-start-occurrence">
+                    <option value="first">First occurrence</option>
+                    <option value="second">Second occurrence</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+            <p class="reservation-total">
+              <span>Total price <span id="reservation-summary" class="reservation-summary"></span></span>
+              <strong id="reservation-total" aria-live="polite">—</strong>
+            </p>
+            <fieldset class="test-card">
+              <legend>Payment Details</legend>
+              <div class="reservation-fields">
+                <input id="test-cardholder" type="text" placeholder="Cardholder Name" aria-label="Cardholder name"
+                  required>
+                <input id="test-card-number" type="text" placeholder="Card Number" aria-label="Card number" required>
+                <input id="test-card-cvv" type="text" placeholder="CVV" aria-label="CVV" required>
+                <input id="test-card-expiry" type="text" placeholder="Expiry Date (MM/YY)" aria-label="Expiry date"
+                  required>
+              </div>
+            </fieldset>
+            <label class="payment-test-decline">
+              <input id="test-payment-decline" type="checkbox">
+              Simulate a declined payment
+            </label>
+            <button id="reserve-button" type="submit" class="primary">Confirm Reservation</button>
+          </form>
+
+          <p id="reservation-error" class="error" role="alert" hidden></p>
+
+          <p id="reservation-success" class="notice" role="status" hidden></p>
+        </section>
+      </section>
 
       <section id="customer-reservations" hidden>
+        <h2>My Reservations</h2>
         <p id="empty-reservations" class="empty">You don’t have any reservations yet.</p>
         <ul id="reservation-list" class="reservation-list"></ul>
       </section>
     </main>
   </div>
 
+  <template id="admin-machine-template">
+    <article class="machine-card admin-machine">
+      <h3></h3>
+      <p class="machine-inactive" hidden>Inactive</p>
+      <form>
+        <fieldset class="admin-machine-fields">
+          <label>Machine name
+            <input name="name" maxlength="100" required>
+          </label>
+          <label>Type
+            <span class="select-with-arrow">
+              <select name="type">
+                <option value="WASHER">Washer</option>
+                <option value="DRYER">Dryer</option>
+              </select>
+            </span>
+          </label>
+          <label>Status
+            <span class="select-with-arrow">
+              <select name="status">
+                <option value="AVAILABLE">Available</option>
+                <option value="RESERVED">Reserved</option>
+                <option value="IN_USE">In Use</option>
+                <option value="OUT_OF_SERVICE">Out of Service</option>
+              </select>
+            </span>
+          </label>
+          <button type="submit" class="primary"></button>
+          <button type="button" class="secondary machine-activation" hidden></button>
+        </fieldset>
+      </form>
+      <p class="notice" role="status" hidden></p>
+      <p class="error" role="alert" hidden></p>
+    </article>
+  </template>
+
+  <template id="admin-reservation-template">
+    <tr>
+      <td class="reservation-id"></td>
+      <td class="reservation-machine"></td>
+      <td>
+        <div class="customer-name"></div>
+        <div class="customer-email"></div>
+      </td>
+      <td class="reservation-time"><time class="start-time"></time> – <time class="end-time"></time></td>
+      <td class="admin-reservation-status"></td>
+    </tr>
+  </template>
+
   <template id="reservation-template">
     <li>
       <div>
-        <h2></h2>
-        <p><time class="start-time"></time> – <time class="end-time"></time></p>
+        <h3></h3>
+        <p class="reservation-time"><time class="start-time"></time> – <time class="end-time"></time></p>
       </div>
       <span class="reservation-status"></span>
+      <p class="payment-summary" hidden></p>
     </li>
   </template>
 </body>
