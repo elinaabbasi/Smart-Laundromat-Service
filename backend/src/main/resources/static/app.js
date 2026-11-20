@@ -31,6 +31,33 @@ function formatPaymentAmount(payment) {
   }).format(payment.amountCents / 100);
 }
 
+function showReservationTime(row, reservation) {
+  const start = new Date(reservation.startsAt);
+  const end = new Date(reservation.endsAt);
+  const startTime = row.querySelector('.start-time');
+  const endTime = row.querySelector('.end-time');
+  startTime.dateTime = reservation.startsAt;
+  endTime.dateTime = reservation.endsAt;
+
+  if (localDateValue(start) !== localDateValue(end)) {
+    const dateOptions = { dateStyle: 'medium', timeStyle: 'short' };
+    startTime.textContent = start.toLocaleString(undefined, dateOptions);
+    endTime.textContent = end.toLocaleString(undefined, dateOptions);
+    return;
+  }
+
+  const timeOptions = { hour: 'numeric', minute: '2-digit' };
+  const sameOffset = start.getTimezoneOffset() === end.getTimezoneOffset();
+  if (!sameOffset) timeOptions.timeZoneName = 'short';
+  const startLabel = start.toLocaleTimeString('en-US', timeOptions).replace(/\s/g, ' ');
+  const samePeriod = (start.getHours() < 12) === (end.getHours() < 12);
+  startTime.textContent = sameOffset && samePeriod ? startLabel.replace(/ [AP]M$/, '') : startLabel;
+  endTime.textContent = end.toLocaleTimeString('en-US', timeOptions).replace(/\s/g, ' ');
+
+  const date = start.toLocaleDateString('en-US', { dateStyle: 'medium' });
+  row.querySelector('.reservation-time').replaceChildren(date + ' • ', startTime, '–', endTime);
+}
+
 function showReservations(customer) {
   const list = get('reservation-list');
   const template = get('reservation-template');
@@ -41,16 +68,7 @@ function showReservations(customer) {
     row.querySelector('h3').textContent = reservation.machine;
     row.querySelector('.reservation-status').textContent = formatLabel(reservation.status);
 
-    const start = new Date(reservation.startsAt);
-    const end = new Date(reservation.endsAt);
-    const startTime = row.querySelector('.start-time');
-    const endTime = row.querySelector('.end-time');
-    const dateOptions = { dateStyle: 'medium', timeStyle: 'short' };
-
-    startTime.dateTime = reservation.startsAt;
-    startTime.textContent = start.toLocaleString(undefined, dateOptions);
-    endTime.dateTime = reservation.endsAt;
-    endTime.textContent = end.toLocaleString(undefined, dateOptions);
+    showReservationTime(row, reservation);
     if (reservation.payment?.status === 'SUCCEEDED') {
       const summary = row.querySelector('.payment-summary');
       summary.textContent = 'Payment completed · ' + formatPaymentAmount(reservation.payment);
