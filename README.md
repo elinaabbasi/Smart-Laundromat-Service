@@ -27,11 +27,21 @@ After saving edits to HTML, CSS, or JavaScript, refresh the browser to see them.
 
 ## Try the reservations page
 
-A fresh account shows an empty list. Sign in, select an available machine, and reserve a future time. The confirmed booking appears in My reservations.
+A fresh account shows an empty list. Sign in, select an available machine, then choose a date, start time, and duration. Reservations cover one to eight consecutive 30-minute blocks, up to four hours. The confirmed booking appears in My Reservations.
 
 Try booking an overlapping time on the same machine. The form reports that the machine is already reserved for that time. You can book the same time on another available machine or book the original machine starting when the first reservation ends.
 
 If an existing database already has overlapping confirmed reservations for a machine, resolve those conflicts before starting the updated app. PostgreSQL validates existing reservations when it installs the constraint.
+
+## Try a simulated payment
+
+Copy a secret key from your [Stripe sandbox API keys](https://dashboard.stripe.com/apikeys) into the `STRIPE_TEST_SECRET_KEY` environment variable before starting Spring Boot. Use an `sk_test_` key or an `rk_test_` key with Customers and PaymentIntents write access.
+
+Select a machine, choose a start time and duration, and enter made-up values in the four test payment fields. The total updates as you change the duration. Each 30-minute washer block costs $5.00 CAD and each dryer block costs $3.00 CAD. Select **Confirm Reservation** to process the test payment and book the time slot.
+
+To test a decline, select **Simulate a declined payment** before submitting. The app records the failed attempt without booking the time slot. Clear the option and submit again to confirm the reservation. The database records the amount and outcome against the reservation or declined attempt.
+
+The server creates and confirms a [Stripe PaymentIntent](https://docs.stripe.com/api/payment_intents/create) using a [test PaymentMethod](https://docs.stripe.com/testing). The sandbox transaction is linked to a Stripe Customer with the name and email from registration. The values entered in the payment fields stay in the browser. The app saves the Stripe PaymentIntent ID with the local payment when Stripe provides one.
 
 ## Try the admin role
 

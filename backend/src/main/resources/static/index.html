@@ -6,8 +6,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#f7faff">
   <title>Smart Laundromat</title>
-  <link rel="stylesheet" href="styles.css">
-  <script type="module" src="app.js"></script>
+  <link rel="stylesheet" href="styles.css?v=5">
+  <script type="module" src="app.js?v=3"></script>
 </head>
 
 <body>
@@ -79,10 +79,10 @@
         </p>
 
         <div class="machine-filters">
-          <label for="machine-type">Machine type</label>
-          <div class="machine-type-select">
+          <label for="machine-type">Machine Type</label>
+          <div class="machine-type-select select-with-arrow">
             <select id="machine-type">
-              <option value="">All machines</option>
+              <option value="">All Machines</option>
               <option value="Washer">Washers</option>
               <option value="Dryer">Dryers</option>
             </select>
@@ -90,7 +90,7 @@
 
           <label class="availability-filter">
             <input type="checkbox" id="available-only">
-            Available only
+            Available Only
           </label>
         </div>
 
@@ -106,28 +106,76 @@
           No machines match your filters.
         </p>
 
-        <p id="selected-machine" class="notice" role="status" hidden></p>
-
         <!-- UC3: Reservation scheduling -->
-        <div id="reservation-form-panel" hidden>
-          <h3>Reserve Selected Machine</h3>
+        <section id="reservation-form-panel" aria-labelledby="selected-machine" hidden>
+          <h3 id="selected-machine" tabindex="-1"></h3>
 
-          <form id="reservation-form">
-            <div>
-              <label for="reservation-start">Start date and time</label>
-              <input id="reservation-start" type="datetime-local" required>
+          <form id="reservation-form" autocomplete="off">
+            <div class="reservation-schedule">
+              <div>
+                <label for="reservation-date">Date</label>
+                <input id="reservation-date" type="date" required>
+              </div>
+              <div>
+                <label for="reservation-start">Start time</label>
+                <input id="reservation-start" type="time" required>
+              </div>
+              <div>
+                <label for="reservation-duration">Duration</label>
+                <div class="select-with-arrow">
+                  <select id="reservation-duration" name="durationMinutes" required>
+                    <option value="30" selected>30 mins</option>
+                    <option value="60">60 mins</option>
+                    <option value="90">90 mins</option>
+                    <option value="120">120 mins</option>
+                    <option value="150">150 mins</option>
+                    <option value="180">180 mins</option>
+                    <option value="210">210 mins</option>
+                    <option value="240">240 mins</option>
+                  </select>
+                </div>
+              </div>
+              <div>
+                <label for="reservation-end">End time</label>
+                <output id="reservation-end"
+                  for="reservation-date reservation-start reservation-start-occurrence reservation-duration">—</output>
+              </div>
+              <div id="reservation-start-occurrence-field" hidden>
+                <label for="reservation-start-occurrence">Repeated start time</label>
+                <div class="select-with-arrow">
+                  <select id="reservation-start-occurrence">
+                    <option value="first">First occurrence</option>
+                    <option value="second">Second occurrence</option>
+                  </select>
+                </div>
+              </div>
             </div>
-            <div>
-              <label for="reservation-end">End date and time</label>
-              <input id="reservation-end" type="datetime-local" required>
-            </div>
+            <p class="reservation-total">
+              <span>Total price <span id="reservation-summary" class="reservation-summary"></span></span>
+              <strong id="reservation-total" aria-live="polite">—</strong>
+            </p>
+            <fieldset class="test-card">
+              <legend>Payment Details</legend>
+              <div class="reservation-fields">
+                <input id="test-cardholder" type="text" placeholder="Cardholder Name" aria-label="Cardholder name"
+                  required>
+                <input id="test-card-number" type="text" placeholder="Card Number" aria-label="Card number" required>
+                <input id="test-card-cvv" type="text" placeholder="CVV" aria-label="CVV" required>
+                <input id="test-card-expiry" type="text" placeholder="Expiry Date (MM/YY)" aria-label="Expiry date"
+                  required>
+              </div>
+            </fieldset>
+            <label class="payment-test-decline">
+              <input id="test-payment-decline" type="checkbox">
+              Simulate a declined payment
+            </label>
             <button id="reserve-button" type="submit" class="primary">Confirm Reservation</button>
           </form>
 
           <p id="reservation-error" class="error" role="alert" hidden></p>
 
           <p id="reservation-success" class="notice" role="status" hidden></p>
-        </div>
+        </section>
       </section>
 
       <section id="customer-reservations" hidden>
@@ -145,6 +193,7 @@
         <p><time class="start-time"></time> – <time class="end-time"></time></p>
       </div>
       <span class="reservation-status"></span>
+      <p class="payment-summary" hidden></p>
     </li>
   </template>
 </body>

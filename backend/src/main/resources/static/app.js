@@ -24,6 +24,13 @@ function showSignIn(message = '') {
   showMessage('sign-in-notice', message);
 }
 
+function formatPaymentAmount(payment) {
+  return new Intl.NumberFormat('en-CA', {
+    style: 'currency',
+    currency: payment.currency
+  }).format(payment.amountCents / 100);
+}
+
 function showReservations(customer) {
   const list = get('reservation-list');
   const template = get('reservation-template');
@@ -44,12 +51,16 @@ function showReservations(customer) {
     startTime.textContent = start.toLocaleString(undefined, dateOptions);
     endTime.dateTime = reservation.endsAt;
     endTime.textContent = end.toLocaleString(undefined, dateOptions);
+    if (reservation.payment?.status === 'SUCCEEDED') {
+      const summary = row.querySelector('.payment-summary');
+      summary.textContent = 'Payment completed · ' + formatPaymentAmount(reservation.payment);
+      summary.hidden = false;
+    }
     list.append(row);
   }
 
   get('empty-reservations').hidden = customer.reservations.length > 0;
 }
-
 
 function showDashboard(account, isAdmin) {
   const heading = get('dashboard-title');
@@ -61,6 +72,7 @@ function showDashboard(account, isAdmin) {
   get('customer-machines').hidden = isAdmin;
 
   if (!isAdmin) {
+    reservationPricing = account.pricing ?? defaultReservationPricing;
     showReservations(account);
     loadMachines();
   }
@@ -179,6 +191,7 @@ get('sign-out').addEventListener('click', async (event) => {
 
     showMessage('account-name');
     get('reservation-list').replaceChildren();
+    get('reservation-form').reset();
     showSignIn('You have signed out.');
     get('sign-in-email').focus();
   } catch {
@@ -207,7 +220,18 @@ get('retry').addEventListener('click', loadAccount);
 
 // UC2: Browse and select machines.
 
-let selectedMachineId = null;
+const reservationDate = get('reservation-date');
+const reservationStart = get('reservation-start');
+const reservationStartOccurrence = get('reservation-start-occurrence');
+const reservationForm = get('reservation-form');
+const defaultReservationPricing = {
+  currency: 'CAD',
+  blockMinutes: 30,
+  blockRatesCents: { WASHER: 500, DRYER: 300 },
+  maxBlocks: 8
+};
+let selectedMachine = null;
+let reservationPricing;
 
 async function loadMachines() {
   const list = get('machine-list');
@@ -215,8 +239,7 @@ async function loadMachines() {
   const availableOnly = get('available-only').checked;
 
   showMessage('machine-error');
-  showMessage('selected-machine');
-  selectedMachineId = null;
+  selectedMachine = null;
   get('reservation-form-panel').hidden = true;
   get('reservation-form').reset();
   showMessage('reservation-error');
@@ -276,14 +299,12 @@ async function loadMachines() {
 
 
       button.addEventListener('click', () => {
-        selectedMachineId = machine.id;
-
-        showMessage(
-          'selected-machine',
-          machine.name + ' selected. Choose your reservation time below.'
-        );
-
+        selectedMachine = machine;
+        const heading = get('selected-machine');
+        heading.textContent = 'Reserve ' + machine.name;
         get('reservation-form-panel').hidden = false;
+        prepareReservationSchedule();
+        heading.focus();
 
         showMessage('reservation-error');
         showMessage('reservation-success');
@@ -313,52 +334,146 @@ get('available-only').addEventListener(
 
 /* UC3: Create a machine reservation. */
 
-get('reservation-form').addEventListener('submit', async (event) => {
+function selectedReservationBlocks() {
+  const minutes = Number(reservationForm.elements.durationMinutes.value);
+  return minutes / reservationPricing.blockMinutes;
+}
+
+function localDateTimeValue(date) {
+  return new Date(date.getTime() - date.getTimezoneOffset() * 60_000).toISOString().slice(0, 16);
+}
+
+function localDateValue(date) {
+  return localDateTimeValue(date).slice(0, 10);
+}
+
+function prepareReservationSchedule() {
+  const now = Date.now();
+  reservationDate.min = localDateValue(new Date(now));
+  if (!reservationDate.value || reservationDate.value < reservationDate.min) {
+    const nextMinute = new Date((Math.floor(now / 60_000) + 1) * 60_000);
+    reservationDate.value = localDateValue(nextMinute);
+  }
+  updateReservationSummary();
+}
+
+function reservationStartTimes() {
+  const localStart = `${reservationDate.value}T${reservationStart.value}`;
+  const start = new Date(localStart);
+  // A nonexistent local time can be shifted forward by the Date constructor.
+  if (!Number.isFinite(start.getTime()) || localDateTimeValue(start) !== localStart) return [];
+
+  // A backward clock change can give the same local time two UTC offsets.
+  const followingDay = new Date(start);
+  followingDay.setDate(followingDay.getDate() + 1);
+  const offsetChange = followingDay.getTimezoneOffset() - start.getTimezoneOffset();
+  if (offsetChange > 0) {
+    const laterStart = new Date(start.getTime() + offsetChange * 60_000);
+    if (localDateTimeValue(laterStart) === localStart) return [start, laterStart];
+  }
+  return [start];
+}
+
+function reservationEndTime(start, blocks) {
+  return new Date(start.getTime() + blocks * reservationPricing.blockMinutes * 60_000);
+}
+
+function updateReservationSummary() {
+  if (!selectedMachine) return;
+  const { currency, blockMinutes, blockRatesCents } = reservationPricing;
+  const rate = blockRatesCents[selectedMachine.type];
+  const blockPrice = formatPaymentAmount({ amountCents: rate, currency });
+  const blocks = selectedReservationBlocks();
+  const [firstStart, laterStart] = reservationStartTimes();
+  get('reservation-start-occurrence-field').hidden = !laterStart;
+  if (!laterStart) reservationStartOccurrence.value = 'first';
+  const start = reservationStartOccurrence.value === 'second' ? laterStart : firstStart;
+  let endLabel = '—';
+  if (start && start > new Date() && blocks > 0) {
+    const end = reservationEndTime(start, blocks);
+    const endFormat = { hour: 'numeric', minute: '2-digit' };
+    if (localDateValue(end) !== localDateValue(start)) {
+      endFormat.month = 'short';
+      endFormat.day = 'numeric';
+    }
+    if (start.getTimezoneOffset() !== end.getTimezoneOffset()) {
+      endFormat.timeZoneName = 'short';
+    }
+    endLabel = end.toLocaleString(undefined, endFormat);
+  }
+  get('reservation-end').value = endLabel;
+  get('reservation-summary').textContent = `${blockPrice} per ${blockMinutes} min`;
+  get('reservation-total').textContent = formatPaymentAmount({ amountCents: blocks * rate, currency });
+}
+
+reservationDate.addEventListener('input', updateReservationSummary);
+reservationStart.addEventListener('input', updateReservationSummary);
+reservationStartOccurrence.addEventListener('change', updateReservationSummary);
+get('reservation-duration').addEventListener('change', updateReservationSummary);
+
+reservationForm.addEventListener('submit', async (event) => {
   event.preventDefault();
 
-  if (selectedMachineId === null) {
+  if (!selectedMachine) {
     showMessage('reservation-error', 'Please select a machine first.');
     return;
   }
 
   const button = get('reserve-button');
-  button.disabled = true;
+  if (button.disabled) return;
 
   showMessage('reservation-error');
   showMessage('reservation-success');
 
-  const startValue = get('reservation-start').value;
-  const endValue = get('reservation-end').value;
-
-  const start = new Date(startValue);
-  const end = new Date(endValue);
-
-  if (
-    !Number.isFinite(start.getTime()) ||
-    !Number.isFinite(end.getTime()) ||
-    start <= new Date() ||
-    end <= start
-  ) {
-    showMessage(
-      'reservation-error',
-      'Choose a future start time and an end time after the start.'
-    );
-    button.disabled = false;
+  const [firstStart, laterStart] = reservationStartTimes();
+  const start = reservationStartOccurrence.value === 'second' ? laterStart : firstStart;
+  if (!start || start <= new Date()) {
+    updateReservationSummary();
+    showMessage('reservation-error', 'Choose a valid future start time.');
     return;
   }
 
+  const blocks = selectedReservationBlocks();
+  if (!Number.isInteger(blocks) || blocks < 1 || blocks > reservationPricing.maxBlocks) {
+    showMessage('reservation-error', 'Choose a duration of 30 minutes to four hours.');
+    return;
+  }
+
+  const dummyFields = get('reservation-form').querySelectorAll('.test-card input');
+  const blankField = Array.from(dummyFields).find((field) => !field.value.trim());
+  if (blankField) {
+    showMessage('reservation-error', 'Complete all four payment fields.');
+    blankField.focus();
+    return;
+  }
+
+  // The text fields stay in the browser. Only a fixed test method goes to the server.
   const reservation = {
-    machineId: selectedMachineId,
+    machineId: selectedMachine.id,
     startsAt: start.toISOString(),
-    endsAt: end.toISOString()
+    endsAt: reservationEndTime(start, blocks).toISOString(),
+    testPaymentMethod: get('test-payment-decline').checked ? 'pm_card_visa_chargeDeclined' : 'pm_card_visa'
   };
 
+  button.disabled = true;
   try {
     const response = await postAccount(
       '/api/reservations',
       JSON.stringify(reservation),
       'application/json'
     );
+
+    if (response.status === 402) {
+      throw new Error('Payment declined. Please try again.');
+    }
+
+    if (response.status === 503) {
+      throw new Error('Stripe test payments are unavailable. Check the server’s test key.');
+    }
+
+    if (response.status === 502) {
+      throw new Error('Stripe did not confirm the test payment. Please try again.');
+    }
 
     if (response.status === 409) {
       throw new Error(
@@ -376,10 +491,11 @@ get('reservation-form').addEventListener('submit', async (event) => {
 
     showMessage(
       'reservation-success',
-      'Your reservation has been confirmed!'
+      'Payment accepted. Your reservation is confirmed.'
     );
 
     get('reservation-form').reset();
+    if (selectedMachine) prepareReservationSchedule();
 
     const reservationsResponse = await fetch(
       '/api/reservations',

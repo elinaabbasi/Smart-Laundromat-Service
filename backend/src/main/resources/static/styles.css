@@ -220,7 +220,8 @@ form .primary {
   overflow-wrap: anywhere;
 }
 
-#dashboard-title:focus {
+#dashboard-title:focus,
+#selected-machine:focus {
   outline: none;
 }
 
@@ -276,6 +277,10 @@ form .primary {
   font-weight: 650;
 }
 
+.reservation-list .payment-summary {
+  width: 100%;
+}
+
 .empty {
   background: #f4f8ff;
   color: var(--muted);
@@ -291,12 +296,15 @@ form .primary {
   margin-bottom: 1.5rem;
 }
 
-.machine-type-select {
+.select-with-arrow {
   position: relative;
 }
 
-.machine-type-select select {
+.select-with-arrow select {
   appearance: none;
+}
+
+.machine-type-select select {
   padding: .65rem;
   padding-inline-end: 2rem;
   border: 1px solid var(--line);
@@ -305,7 +313,7 @@ form .primary {
   font: inherit;
 }
 
-.machine-type-select::after {
+.select-with-arrow::after {
   content: "";
   position: absolute;
   inset-block-start: 50%;
@@ -362,19 +370,107 @@ form .primary {
 }
 
 #reservation-form {
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr));
-  align-items: end;
-  max-width: 49rem;
+  max-width: 40rem;
   margin-bottom: 1rem;
 }
 
-#reservation-form label {
-  display: block;
-  margin-bottom: .5rem;
+.reservation-schedule,
+.reservation-fields {
+  display: grid;
+  gap: 1rem;
 }
 
-#reservation-form input {
+.reservation-schedule {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+@media (max-width: 40rem) {
+  .reservation-schedule {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 24rem) {
+  .reservation-schedule {
+    grid-template-columns: 1fr;
+  }
+}
+
+.reservation-fields {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr));
+}
+
+.reservation-schedule label {
+  display: block;
+  margin-bottom: .4rem;
+  font-weight: 650;
+}
+
+.reservation-schedule input,
+.reservation-fields input {
   min-width: 0;
+}
+
+#reservation-start-occurrence-field {
+  grid-column: 1 / -1;
+  max-width: 15rem;
+}
+
+.reservation-schedule select {
+  width: 100%;
+  min-height: 3rem;
+  padding: .5rem .8rem;
+  padding-inline-end: 2rem;
+  border: 1px solid #a9bbd2;
+  border-radius: .6rem;
+  background: #fff;
+  color: var(--ink);
+  font: inherit;
+}
+
+.reservation-schedule output {
+  display: flex;
+  align-items: center;
+  min-height: 3rem;
+}
+
+.reservation-total {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  margin: 0;
+  padding-block: .75rem;
+  border-block: 1px solid var(--line);
+}
+
+.reservation-summary {
+  display: block;
+  color: var(--muted);
+  font-size: .875rem;
+}
+
+.test-card {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.test-card legend {
+  margin-bottom: .75rem;
+  padding: 0;
+  font-weight: 700;
+}
+
+.payment-test-decline {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+}
+
+.payment-test-decline input {
+  width: auto;
+  min-height: auto;
 }
 
 #reservation-form .primary {
