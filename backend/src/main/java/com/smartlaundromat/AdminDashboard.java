@@ -72,6 +72,19 @@ public class AdminDashboard {
         return new Dashboard(name, machines, reservations, payments);
     }
 
+    @GetMapping("/summary")
+    public Summary summary() {
+        return database.sql("""
+                SELECT (SELECT COUNT(*) FROM machines) AS machines,
+                       (SELECT COUNT(*) FROM reservations
+                        WHERE status <> 'Payment Failed') AS reservations,
+                       (SELECT COUNT(*) FROM reservation_payments
+                        WHERE status = 'SUCCEEDED') AS completed_payments
+                """)
+                .query(Summary.class)
+                .single();
+    }
+
     @PostMapping("/machines")
     @ResponseStatus(HttpStatus.CREATED)
     public AdminMachine addMachine(@Valid @RequestBody MachineDetails details) {
@@ -146,6 +159,8 @@ public class AdminDashboard {
 
     public record AdminPayment(long id, long reservationId, int amountCents, String currency,
                                String status, OffsetDateTime attemptedAt) {}
+
+    public record Summary(long machines, long reservations, long completedPayments) {}
 
     public record Dashboard(String name, List<AdminMachine> machines, List<AdminReservation> reservations,
                             List<AdminPayment> payments) {}
