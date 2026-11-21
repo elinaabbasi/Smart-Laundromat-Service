@@ -112,3 +112,17 @@ CREATE UNIQUE INDEX IF NOT EXISTS reservation_payments_one_success
 
 ALTER TABLE reservation_payments
     ADD COLUMN IF NOT EXISTS stripe_payment_intent_id TEXT;
+
+
+-- UC6: Notifications
+
+CREATE TABLE IF NOT EXISTS notifications (
+    id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    customer_id BIGINT NOT NULL REFERENCES customers(id),
+    message VARCHAR(255) NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS notifications_customer_created
+    ON notifications (customer_id, created_at DESC);
+    

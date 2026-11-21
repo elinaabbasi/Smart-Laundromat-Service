@@ -83,6 +83,42 @@ function showReservations(customer) {
   get('empty-reservations').hidden = customer.reservations.length > 0;
 }
 
+
+// UC6: show customer's notifications
+async function loadNotifications() {
+  const list = get('notification-list');
+  showMessage('notification-error');
+
+  try {
+    const response = await fetch('/api/notifications', { cache: 'no-store' });
+    if (!response.ok) throw new Error();
+    const notifications = await response.json();
+
+    list.replaceChildren();
+    for (const notification of notifications) {
+      const item = document.createElement('li');
+
+      const message = document.createElement('p');
+      message.textContent = notification.message;
+
+      const time = document.createElement('time');
+      time.dateTime = notification.createdAt;
+      time.textContent = new Date(notification.createdAt).toLocaleString(undefined, {
+        dateStyle: 'medium',
+        timeStyle: 'short'
+      });
+
+      item.append(message, time);
+      list.append(item);
+    }
+    get('empty-notifications').hidden = notifications.length > 0;
+  } catch {
+    showMessage('notification-error', 'Could not load notifications. Please try again.');
+  }
+}
+
+
+
 function showDashboard(account, isAdmin) {
   const heading = get('dashboard-title');
   heading.textContent = isAdmin
@@ -90,6 +126,7 @@ function showDashboard(account, isAdmin) {
     : `${account.name}'s Dashboard`;
   get('customer-reservations').hidden = isAdmin;
   get('customer-machines').hidden = isAdmin;
+  get('customer-notifications').hidden = isAdmin;
   get('admin-summary').hidden = !isAdmin;
   get('admin-machines').hidden = !isAdmin;
   get('admin-reservations').hidden = !isAdmin;
@@ -101,6 +138,7 @@ function showDashboard(account, isAdmin) {
     reservationPricing = account.pricing ?? defaultReservationPricing;
     showReservations(account);
     loadMachines();
+    loadNotifications();
   }
   showMessage('sign-out-error');
   get('loading').hidden = true;
@@ -378,6 +416,7 @@ get('sign-out').addEventListener('click', async (event) => {
 
     showMessage('account-name');
     get('reservation-list').replaceChildren();
+    get('notification-list').replaceChildren();
     get('reservation-form').reset();
     get('admin-machine-list').replaceChildren();
     get('admin-reservation-list').replaceChildren();
@@ -693,6 +732,8 @@ reservationForm.addEventListener('submit', async (event) => {
     if (reservationsResponse.ok) {
       showReservations(await reservationsResponse.json());
     }
+
+    loadNotifications();
 
   } catch (error) {
     showMessage(
