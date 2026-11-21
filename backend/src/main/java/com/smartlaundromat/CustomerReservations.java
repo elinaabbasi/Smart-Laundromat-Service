@@ -198,6 +198,11 @@ public class CustomerReservations {
                     .update();
             return ResponseEntity.status(HttpStatus.PAYMENT_REQUIRED).build();
         }
+
+        // UC6: Send notification confirming reservation after successful payment
+        saveNotification(account.id(), "Reservation confirmed: " + reservation.machine()
+                + " (reservation #" + reservation.id() + ").");
+
         return ResponseEntity.status(HttpStatus.CREATED).body(new Reservation(
                 reservation.id(), reservation.machine(), reservation.startsAt(),
                 reservation.endsAt(), reservation.status(), payment));
@@ -269,4 +274,17 @@ public class CustomerReservations {
             OffsetDateTime endsAt,
             String status,
             Payment payment) {}
+
+// UC6: helper method to save one notification row
+    private void saveNotification(long customerId, String message) {
+        database.sql("""
+                INSERT INTO notifications (customer_id, message, created_at)
+                VALUES (:customerId, :message, NOW())
+                """)
+                .param("customerId", customerId)
+                .param("message", message)
+                .update();
+    }
+
+
 }

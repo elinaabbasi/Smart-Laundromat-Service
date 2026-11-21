@@ -43,6 +43,11 @@ To test a decline, select **Simulate a declined payment** before submitting. The
 
 The server creates and confirms a [Stripe PaymentIntent](https://docs.stripe.com/api/payment_intents/create) using a [test PaymentMethod](https://docs.stripe.com/testing). The sandbox transaction is linked to a Stripe Customer with the name and email from registration. The values entered in the payment fields stay in the browser. The app saves the Stripe PaymentIntent ID with the local payment when Stripe provides one.
 
+## Try notifications
+
+Notifications are messages stored in the app, in the `notifications` table. After a successful payment, the server saves a "Reservation confirmed" message for that customer, and it appears in the **Notifications** list on the customer dashboard (newest first, up to 20) without refreshing. Declined payments do not create a notification. Admin accounts do not have a Notifications section. Customers can only view their own notifications.
+
+
 ## Try the admin role
 
 Both roles use the same sign-in form. Public registration creates a Customer account. To try the Admin dashboard, register a separate account and run this in your local PostgreSQL client. Replace the example email with that account’s email in lowercase.
@@ -70,4 +75,6 @@ Sign in as an Admin. The **Summary** at the top of the dashboard shows the numbe
 - The frontend files are in `backend/src/main/resources/static`. `index.html` contains the forms and reservation layout, `styles.css` sets the appearance, and `app.js` connects the forms to the API.
 - Spring Boot creates the `customers` and `reservations` tables on startup. A reservation belongs to one customer through `customer_id`.
 - Spring Security hashes passwords with PBKDF2 and loads the saved role into the session at sign-in. The browser sends the session cookie with each request.
-- The admin dashboard and machine management endpoints require the Admin role. The customer reservations endpoint requires the Customer role and uses the signed-in email to return that customer’s reservations. Signing out ends the session.
+- The admin dashboard and machine management endpoints require the Admin role. The customer reservations and notifications endpoints require the Customer role and uses the signed-in email to return that customer’s reservations. Signing out ends the session.
+- Each notification is one row in `notifications`, linked to a customer by `customer_id`. A confirmed reservation saves its notification in the same database transaction as the reservation and payment.
+

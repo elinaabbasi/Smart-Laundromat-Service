@@ -7,7 +7,7 @@
   <meta name="theme-color" content="#f7faff">
   <title>Smart Laundromat</title>
   <link rel="stylesheet" href="styles.css?v=8">
-  <script type="module" src="app.js?v=9"></script>
+  <script type="module" src="app.js?v=10"></script>
 </head>
 
 <body>
@@ -246,6 +246,16 @@
           <p id="reservation-success" class="notice" role="status" hidden></p>
         </section>
       </section>
+
+      <!-- UC6: notifications -->
+      <section id="customer-notifications" hidden>
+        <h2>Notifications</h2>
+        <p id="notification-error" class="error" role="alert" hidden></p>
+        <p id="empty-notifications" class="empty">No notifications yet.</p>
+        <ul id="notification-list" class="reservation-list"></ul>
+      </section>
+
+
 
       <section id="customer-reservations" hidden>
         <h2>My Reservations</h2>
