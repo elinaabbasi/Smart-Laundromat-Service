@@ -4,7 +4,6 @@ import java.net.http.HttpClient;
 import java.time.Duration;
 import java.util.Locale;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -14,6 +13,8 @@ import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.server.ResponseStatusException;
+
+import com.fasterxml.jackson.databind.JsonNode;
 
 @Component
 class StripeTestPayments {
@@ -88,6 +89,17 @@ class StripeTestPayments {
                         }
                         throw stripeUnavailable();
                     });
+        } catch (RestClientException error) {
+            throw stripeUnavailable();
+        }
+    }
+
+    void refund(String paymentIntentId, String idempotencyKey) {
+        var fields = new LinkedMultiValueMap<String, String>();
+        fields.add("payment_intent", paymentIntentId);
+
+        try {
+            postForm("/v1/refunds", idempotencyKey, fields).retrieve().toBodilessEntity();
         } catch (RestClientException error) {
             throw stripeUnavailable();
         }

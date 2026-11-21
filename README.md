@@ -60,7 +60,7 @@ WHERE email = 'admin@example.com';
 
 Sign in with that account to open the Admin dashboard. If it was already signed in, sign out and back in to load the new role.
 
-Select **Add Machine** at the top of **Manage machines** to open a form at the end of the machine list. Enter a name, choose a type and status, then select **Add machine** on the card. To edit an existing machine, change its details and select **Save changes**. Deactivated machines stay visible to customers as **Unavailable**, with booking disabled. Existing reservations and payments stay available, and the machine remains marked **Inactive** in the dashboard.
+Select **Add Machine** at the top of **Manage machines** to open a form at the end of the machine list. Enter a name, choose a type and status, then select **Add machine** on the card. To edit an existing machine, change its details and select **Save changes**. Deactivated machines stay visible to customers as **Unavailable**, with booking disabled, and the machine remains marked **Inactive** in the dashboard. Deactivating a machine cancels its confirmed reservations that haven't started yet, refunds their Stripe test payments, and sends each customer a notification. Reservations already in progress or in the past are kept. If Stripe can't complete a refund, the machine stays active and nothing is cancelled, so you can try again.
 
 Select **Reactivate machine** on an inactive machine to restore its saved status in the customer list. Customers can book it when that status is **Available**.
 
@@ -69,6 +69,16 @@ The **Reservations** table shows customers, scheduled times, and reservation sta
 ## Try the analytics summary
 
 Sign in as an Admin. The **Summary** at the top of the dashboard shows the number of machines, reservations, and completed payments. Declined checkouts are not counted as reservations. With no data, each count shows 0. Adding a machine updates the summary, and reloading the dashboard picks up new reservations and payments. The summary is also available as JSON from `GET /api/admin/summary`, which returns 403 for customer accounts.
+
+## Run the tests
+
+The automated tests are in `backend/src/test`. With the database running, run them from the `backend` folder:
+
+```sh
+mvn test
+```
+
+Each test rolls back its changes, so your data is unchanged afterwards. Stripe is faked, so no Stripe key is needed. See [TEST_RESULTS.md](TEST_RESULTS.md) for every test case and the latest results.
 
 ## How it works
 

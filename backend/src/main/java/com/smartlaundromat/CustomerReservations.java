@@ -263,7 +263,7 @@ public class CustomerReservations {
 
     public record Pricing(String currency, int blockMinutes, Map<String, Integer> blockRatesCents, int maxBlocks) {}
 
-    public enum PaymentStatus { UNPAID, SUCCEEDED, FAILED }
+    public enum PaymentStatus { UNPAID, SUCCEEDED, FAILED, REFUNDED }
 
     public record Payment(int amountCents, String currency, PaymentStatus status) {}
 

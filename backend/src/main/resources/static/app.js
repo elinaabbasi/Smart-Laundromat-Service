@@ -231,6 +231,9 @@ function adminMachineCard(machine) {
       if (response.status === 409) throw new Error('A machine already uses that name.');
       if (response.status === 400) throw new Error('Enter a machine name and choose a valid type and status.');
       if (response.status === 404) throw new Error('Machine not found. Reload the dashboard and try again.');
+      if (action === 'deactivate' && (response.status === 502 || response.status === 503)) {
+        throw new Error('Stripe could not refund this machine’s reservations, so it is still active. Please try again.');
+      }
       if (response.status === 401 || response.status === 403) {
         throw new Error('Your session may have expired. Sign in again to manage machines.');
       }
@@ -239,7 +242,9 @@ function adminMachineCard(machine) {
 
       if (action) {
         showActivation(saved.active);
-        setMessage(notice, saved.active ? 'Machine reactivated.' : 'Machine deactivated.');
+        setMessage(notice, saved.active
+          ? 'Machine reactivated.'
+          : 'Machine deactivated. Any upcoming reservations were cancelled, refunded and their customers notified.');
       } else if (machine) {
         showMachine(saved);
         setMessage(notice, 'Changes saved.');
