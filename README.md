@@ -61,6 +61,10 @@ Select **Reactivate machine** on an inactive machine to restore its saved status
 
 The **Reservations** table shows customers, scheduled times, and reservation statuses. The **Payments** table shows each recorded attempt with its reservation ID, amount, currency, outcome, and timestamp. Reload the dashboard to see new activity.
 
+## Try the analytics summary
+
+Sign in as an Admin. The **Summary** at the top of the dashboard shows the number of machines, reservations, and completed payments. Declined checkouts are not counted as reservations. With no data, each count shows 0. Adding a machine updates the summary, and reloading the dashboard picks up new reservations and payments. The summary is also available as JSON from `GET /api/admin/summary`, which returns 403 for customer accounts.
+
 ## How it works
 
 - The frontend files are in `backend/src/main/resources/static`. `index.html` contains the forms and reservation layout, `styles.css` sets the appearance, and `app.js` connects the forms to the API.

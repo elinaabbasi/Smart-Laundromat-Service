@@ -71,6 +71,25 @@
       <p id="account-name" class="intro" hidden></p>
       <p id="sign-out-error" class="error" role="alert" hidden></p>
 
+      <section id="admin-summary" aria-labelledby="admin-summary-title" hidden>
+        <h2 id="admin-summary-title">Summary</h2>
+        <p id="admin-summary-error" class="error" role="alert" hidden></p>
+        <dl id="admin-summary-stats" class="summary-grid" hidden>
+          <div class="summary-stat">
+            <dt>Machines</dt>
+            <dd id="summary-machines"></dd>
+          </div>
+          <div class="summary-stat">
+            <dt>Reservations</dt>
+            <dd id="summary-reservations"></dd>
+          </div>
+          <div class="summary-stat">
+            <dt>Completed payments</dt>
+            <dd id="summary-completed-payments"></dd>
+          </div>
+        </dl>
+      </section>
+
       <section id="admin-machines" aria-labelledby="admin-machines-title" hidden>
         <div class="admin-machines-header">
           <h2 id="admin-machines-title">Manage machines</h2>

@@ -90,6 +90,7 @@ function showDashboard(account, isAdmin) {
     : `${account.name}'s Dashboard`;
   get('customer-reservations').hidden = isAdmin;
   get('customer-machines').hidden = isAdmin;
+  get('admin-summary').hidden = !isAdmin;
   get('admin-machines').hidden = !isAdmin;
   get('admin-reservations').hidden = !isAdmin;
   get('admin-payments').hidden = !isAdmin;
@@ -209,6 +210,7 @@ function adminMachineCard(machine) {
         setMessage(savedCard.querySelector('.notice'), saved.name + ' added.');
         card.replaceWith(savedCard);
         focusTarget = savedCard.querySelector('input[name="name"]');
+        loadSummary();
       }
     } catch (failure) {
       setMessage(error, failure instanceof TypeError ? 'Could not connect. Please try again.' : failure.message);
@@ -246,7 +248,31 @@ get('admin-add-machine').addEventListener('click', () => {
   draft.querySelector('input[name="name"]').focus();
 });
 
+async function loadSummary() {
+  const stats = get('admin-summary-stats');
+  showMessage('admin-summary-error');
+
+  try {
+    const response = await fetch('/api/admin/summary', { cache: 'no-store' });
+    if (response.status === 401 || response.status === 403) {
+      throw new Error('Your session may have expired. Sign in again to view the summary.');
+    }
+    if (!response.ok) throw new Error('The analytics summary could not be retrieved. Please try again.');
+    const summary = await response.json();
+
+    get('summary-machines').textContent = summary.machines;
+    get('summary-reservations').textContent = summary.reservations;
+    get('summary-completed-payments').textContent = summary.completedPayments;
+    stats.hidden = false;
+  } catch (error) {
+    stats.hidden = true;
+    showMessage('admin-summary-error', error instanceof TypeError ? 'Could not connect. Please try again.' : error.message);
+  }
+}
+
 function showAdminDashboard(account) {
+  loadSummary();
+
   const machines = get('admin-machine-list');
   machines.replaceChildren();
   for (const machine of account.machines) machines.append(adminMachineCard(machine));
