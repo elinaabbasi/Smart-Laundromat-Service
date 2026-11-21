@@ -125,4 +125,10 @@ CREATE TABLE IF NOT EXISTS notifications (
 
 CREATE INDEX IF NOT EXISTS notifications_customer_created
     ON notifications (customer_id, created_at DESC);
-    
+
+
+-- UC8: Allow REFUNDED payments. Replace the original status check with one that includes it.
+ALTER TABLE reservation_payments DROP CONSTRAINT IF EXISTS reservation_payments_status_check;
+ALTER TABLE reservation_payments DROP CONSTRAINT IF EXISTS reservation_payments_status_allowed;
+ALTER TABLE reservation_payments ADD CONSTRAINT reservation_payments_status_allowed
+    CHECK (status IN ('SUCCEEDED', 'FAILED', 'REFUNDED'));

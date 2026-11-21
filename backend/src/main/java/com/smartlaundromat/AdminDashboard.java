@@ -30,9 +30,11 @@ import org.springframework.web.server.ResponseStatusException;
 @RequestMapping("/api/admin")
 public class AdminDashboard {
     private final JdbcClient database;
+    private final StripeTestPayments stripe;
 
-    AdminDashboard(JdbcClient database) {
+    AdminDashboard(JdbcClient database, StripeTestPayments stripe) {
         this.database = database;
+        this.stripe = stripe;
     }
 
     @GetMapping
@@ -116,9 +118,58 @@ public class AdminDashboard {
                 .orElseThrow(AdminDashboard::machineNotFound);
     }
 
+    // UC8: Deactivate a machine, then cancel and refund its reservations that haven't started
+    // and notify each customer. If a Stripe refund fails, nothing is saved and the admin can try again.
     @PostMapping("/machines/{id}/deactivate")
+    @Transactional
     public AdminMachine deactivateMachine(@PathVariable long id) {
-        return setMachineActive(id, false);
+        AdminMachine machine = setMachineActive(id, false);
+
+        List<CancelledReservation> cancelled = database.sql("""
+                UPDATE reservations SET status = 'Cancelled'
+                WHERE machine_id = :id
+                  AND status = 'Confirmed'
+                  AND starts_at > CURRENT_TIMESTAMP
+                RETURNING id, customer_id, machine
+                """)
+                .param("id", id)
+                .query(CancelledReservation.class)
+                .list();
+
+        for (CancelledReservation reservation : cancelled) {
+            String message = "Reservation cancelled: " + reservation.machine()
+                    + " (reservation #" + reservation.id() + ") because the machine is no longer available.";
+
+            PaidPayment paid = database.sql("""
+                    SELECT id, amount_cents, currency, stripe_payment_intent_id
+                    FROM reservation_payments
+                    WHERE reservation_id = :reservationId AND status = 'SUCCEEDED'
+                    """)
+                    .param("reservationId", reservation.id())
+                    .query(PaidPayment.class)
+                    .optional()
+                    .orElse(null);
+
+            if (paid != null) {
+                // The key stops Stripe from refunding the same payment twice if the admin retries.
+                stripe.refund(paid.stripePaymentIntentId(), "refund-" + paid.stripePaymentIntentId());
+                database.sql("UPDATE reservation_payments SET status = 'REFUNDED' WHERE id = :id")
+                        .param("id", paid.id())
+                        .update();
+                message += " Your payment of $%d.%02d %s has been refunded."
+                        .formatted(paid.amountCents() / 100, paid.amountCents() % 100, paid.currency());
+            }
+
+            // UC6: Notify the customer, the same way confirmed reservations are notified.
+            database.sql("""
+                    INSERT INTO notifications (customer_id, message, created_at)
+                    VALUES (:customerId, :message, NOW())
+                    """)
+                    .param("customerId", reservation.customerId())
+                    .param("message", message)
+                    .update();
+        }
+        return machine;
     }
 
     @PostMapping("/machines/{id}/reactivate")
@@ -151,6 +202,10 @@ public class AdminDashboard {
             @NotBlank @Size(max = 100) String name,
             @NotNull @Pattern(regexp = "WASHER|DRYER") String type,
             @NotNull @Pattern(regexp = "AVAILABLE|RESERVED|IN_USE|OUT_OF_SERVICE") String status) {}
+
+    private record CancelledReservation(long id, long customerId, String machine) {}
+
+    private record PaidPayment(long id, int amountCents, String currency, String stripePaymentIntentId) {}
 
     public record AdminMachine(long id, String name, String type, String status, boolean active) {}
 
