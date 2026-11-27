@@ -11,6 +11,7 @@ import java.util.Map;
 import java.util.UUID;
 
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.transaction.annotation.Transactional;
@@ -83,7 +84,7 @@ public class CustomerReservations {
     // UC3: Create a new machine reservation.
     @PostMapping("/reservations")
     @Transactional
-    public ResponseEntity<Reservation> createReservation(
+    public ResponseEntity<?> createReservation(
             @RequestBody ReservationRequest request,
             Principal customer) {
 
@@ -196,7 +197,10 @@ public class CustomerReservations {
             database.sql("UPDATE reservations SET status = 'Payment Failed' WHERE id = :id")
                     .param("id", reservation.id())
                     .update();
-            return ResponseEntity.status(HttpStatus.PAYMENT_REQUIRED).build();
+            // Return normally so the transaction commits the failed payment attempt.
+            ProblemDetail problem = ProblemDetail.forStatusAndDetail(
+                    HttpStatus.PAYMENT_REQUIRED, "Payment was declined. Try another payment method.");
+            return ResponseEntity.of(problem).build();
         }
 
         // UC6: Send notification confirming reservation after successful payment

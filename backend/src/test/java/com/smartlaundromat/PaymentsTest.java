@@ -9,6 +9,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -20,6 +21,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.web.server.ResponseStatusException;
 
 @DisplayName("UC4: Payment")
@@ -80,7 +82,10 @@ class PaymentsTest extends ApiTest {
     void declinedPaymentIsRecorded() throws Exception {
         Instant start = tomorrow();
         reserve(CUSTOMER, washer, start, start.plus(30, ChronoUnit.MINUTES), DECLINED_CARD)
-                .andExpect(status().isPaymentRequired());
+                .andExpect(status().isPaymentRequired())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.status").value(402))
+                .andExpect(jsonPath("$.detail").value("Payment was declined. Try another payment method."));
 
         Map<String, Object> payment = latestPayment(washer);
         assertThat(payment.get("status")).isEqualTo("FAILED");

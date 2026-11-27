@@ -12,6 +12,7 @@ import jakarta.validation.constraints.Size;
 
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ProblemDetail;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
@@ -195,13 +196,15 @@ public class AdminDashboard {
     }
 
     @ExceptionHandler(DuplicateKeyException.class)
-    @ResponseStatus(HttpStatus.CONFLICT)
-    public void duplicateMachineName() {}
+    public ProblemDetail duplicateMachineName() {
+        return ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, "A machine already uses that name.");
+    }
 
     public record MachineDetails(
             @NotBlank @Size(max = 100) String name,
-            @NotNull @Pattern(regexp = "WASHER|DRYER") String type,
-            @NotNull @Pattern(regexp = "AVAILABLE|RESERVED|IN_USE|OUT_OF_SERVICE") String status) {}
+            @NotNull @Pattern(regexp = "WASHER|DRYER", message = "Choose WASHER or DRYER.") String type,
+            @NotNull @Pattern(regexp = "AVAILABLE|RESERVED|IN_USE|OUT_OF_SERVICE",
+                    message = "Choose AVAILABLE, RESERVED, IN_USE, or OUT_OF_SERVICE.") String status) {}
 
     private record CancelledReservation(long id, long customerId, String machine) {}
 
