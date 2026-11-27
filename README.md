@@ -82,9 +82,22 @@ Each test rolls back its changes, so your data is unchanged afterwards. Stripe i
 
 ## How it works
 
-- The frontend files are in `backend/src/main/resources/static`. `index.html` contains the forms and reservation layout, `styles.css` sets the appearance, and `app.js` connects the forms to the API.
-- Spring Boot creates the `customers` and `reservations` tables on startup. A reservation belongs to one customer through `customer_id`.
-- Spring Security hashes passwords with PBKDF2 and loads the saved role into the session at sign-in. The browser sends the session cookie with each request.
-- The admin dashboard and machine management endpoints require the Admin role. The customer reservations and notifications endpoints require the Customer role and uses the signed-in email to return that customer’s reservations. Signing out ends the session.
-- Each notification is one row in `notifications`, linked to a customer by `customer_id`. A confirmed reservation saves its notification in the same database transaction as the reservation and payment.
+### Architecture
+
+Smart Laundromat is a modular monolith. One Spring Boot application serves the browser UI and REST API, with PostgreSQL for persistence and Stripe’s sandbox for payments. A single deployment keeps the browser and API on the same origin for session authentication. It also lets checkout, admin cancellation, and notifications coordinate their local database writes in Spring-managed transactions.
+
+| Layer | Responsibility |
+| --- | --- |
+| Presentation | **Browser UI (view).** Spring Boot serves `index.html`, `styles.css`, and `app.js` from `backend/src/main/resources/static`. HTML structures the page, CSS styles it, and JavaScript handles interactions and calls the API. **Server-side presentation.** Controllers in `com.smartlaundromat.presentation` handle HTTP requests and responses. Spring Security manages sessions, role checks, and CSRF protection. |
+| Business logic | Services in `com.smartlaundromat.business` handle registration, machine search, checkout, admin actions, and notification retrieval. Checkout validates and prices bookings, and admin deactivation coordinates cancellations and refunds. Application services define the transaction boundaries. |
+| Data access and persistence | Repositories in `com.smartlaundromat.dataaccess` contain the SQL and map PostgreSQL rows to Java records. `schema.sql` defines tables and constraints, including the rule against overlapping confirmed bookings. The repositories also implement the row locks used during checkout. |
+| External service communication | `StripePayments` in `com.smartlaundromat.externalservices` implements the `PaymentGateway` interface. It owns the HTTP requests, Stripe authentication, and interpretation of provider responses for customer creation, charges, and refunds. |
+
+For example, when a customer books a machine, the reservation controller passes the request and the signed-in email to `ReservationService`. The service validates and prices the booking, claims the slot through a repository, and calls `PaymentGateway`. It records the payment outcome and writes a confirmation notification on success. The controller turns the outcome into an HTTP response.
+
+### Access and data
+
+- Spring Security uses PBKDF2 password hashes and loads the saved role at sign-in. The browser sends the session cookie with each request. Signing out ends the session.
+- The admin dashboard and machine management endpoints require the Admin role. Customer reservation and notification endpoints require the Customer role and use the signed-in email to scope the results.
+- A reservation and its notifications are linked to the customer through `customer_id`. Checkout saves the confirmation notification in the same PostgreSQL transaction as the reservation and payment record.
 

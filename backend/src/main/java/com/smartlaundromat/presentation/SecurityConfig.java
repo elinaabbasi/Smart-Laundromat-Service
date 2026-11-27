@@ -1,9 +1,10 @@
-package com.smartlaundromat;
+package com.smartlaundromat.presentation;
 
 import java.io.IOException;
 import java.net.URI;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.smartlaundromat.business.AccountService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
@@ -13,7 +14,6 @@ import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ProblemDetail;
-import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetailsService;
@@ -72,18 +72,13 @@ public class SecurityConfig {
     }
 
     @Bean
-    UserDetailsService customers(JdbcClient database) {
-        return email -> {
-            String normalizedEmail = CustomerAccounts.normalizeEmail(email);
-            return database.sql("SELECT password_hash, role FROM customers WHERE email = :email")
-                    .param("email", normalizedEmail)
-                    .query((row, index) -> User.withUsername(normalizedEmail)
-                            .password(row.getString("password_hash"))
-                            .roles(row.getString("role"))
-                            .build())
-                    .optional()
-                    .orElseThrow(() -> new UsernameNotFoundException("Customer not found"));
-        };
+    UserDetailsService customers(AccountService accounts) {
+        return email -> accounts.findCredentials(email)
+                .map(account -> User.withUsername(account.email())
+                        .password(account.passwordHash())
+                        .roles(account.role())
+                        .build())
+                .orElseThrow(() -> new UsernameNotFoundException("Customer not found"));
     }
 
     @Bean
