@@ -3,6 +3,7 @@ package com.smartlaundromat;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -92,12 +93,27 @@ class ReservationsTest extends ApiTest {
         Instant start = tomorrow();
 
         reserve(CUSTOMER, washer, start, start.minus(30, ChronoUnit.MINUTES))
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isBadRequest())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.status").value(400))
+                .andExpect(jsonPath("$.detail").value("Choose a future start time and a valid end time."));
         api.perform(post("/api/reservations")
                         .with(user(CUSTOMER).roles("CUSTOMER")).with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"testPaymentMethod\": \"pm_card_visa\"}"))
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.detail").value("Machine and reservation times are required."));
+    }
+
+    @Test
+    void malformedReservationJsonReturnsProblemDetail() throws Exception {
+        api.perform(post("/api/reservations")
+                        .with(user(CUSTOMER).roles("CUSTOMER")).with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"machineId\":"))
+                .andExpect(status().isBadRequest())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.detail").value("Send a valid JSON request body with the expected field types."));
     }
 
     @Test
@@ -109,7 +125,10 @@ class ReservationsTest extends ApiTest {
         reserve(CUSTOMER, washer, start, start.plus(60, ChronoUnit.MINUTES)).andExpect(status().isCreated());
 
         reserve(other, washer, start.plus(30, ChronoUnit.MINUTES), start.plus(90, ChronoUnit.MINUTES))
-                .andExpect(status().isConflict());
+                .andExpect(status().isConflict())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.status").value(409))
+                .andExpect(jsonPath("$.detail").value("This machine is already booked for the selected time."));
     }
 
     @Test

@@ -1,9 +1,12 @@
 package com.smartlaundromat;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.not;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -62,7 +65,12 @@ class CustomerAccountsTest extends ApiTest {
     void invalidRegistrationIsRejected() throws Exception {
         register("", "blank.name@example.com", PASSWORD).andExpect(status().isBadRequest());
         register("Bad Email", "not-an-email", PASSWORD).andExpect(status().isBadRequest());
-        register("Short Password", "short@example.com", "short").andExpect(status().isBadRequest());
+        register("Short Password", "short@example.com", "secret7")
+                .andExpect(status().isBadRequest())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.errors[0].field").value("password"))
+                .andExpect(jsonPath("$.errors[0].message").isNotEmpty())
+                .andExpect(content().string(not(containsString("secret7"))));
     }
 
     @Test
@@ -85,11 +93,21 @@ class CustomerAccountsTest extends ApiTest {
         api.perform(post("/api/login").with(csrf())
                         .param("email", "wrongpass@example.com")
                         .param("password", "not-the-password"))
-                .andExpect(status().isUnauthorized());
+                .andExpect(status().isUnauthorized())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.detail").value("The email or password is incorrect."));
         api.perform(post("/api/login").with(csrf())
                         .param("email", "nobody@example.com")
                         .param("password", PASSWORD))
                 .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void missingCsrfTokenReturnsProblemDetail() throws Exception {
+        api.perform(post("/api/register"))
+                .andExpect(status().isForbidden())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.detail").value("Refresh the security token and try again."));
     }
 
     @Test

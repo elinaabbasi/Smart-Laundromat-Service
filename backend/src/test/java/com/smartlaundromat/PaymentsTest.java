@@ -9,6 +9,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -16,11 +17,13 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Map;
 
+import com.smartlaundromat.business.ApplicationException;
+import com.smartlaundromat.business.ApplicationException.Reason;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.springframework.http.HttpStatus;
-import org.springframework.web.server.ResponseStatusException;
+import org.springframework.http.MediaType;
 
 @DisplayName("UC4: Payment")
 class PaymentsTest extends ApiTest {
@@ -80,7 +83,10 @@ class PaymentsTest extends ApiTest {
     void declinedPaymentIsRecorded() throws Exception {
         Instant start = tomorrow();
         reserve(CUSTOMER, washer, start, start.plus(30, ChronoUnit.MINUTES), DECLINED_CARD)
-                .andExpect(status().isPaymentRequired());
+                .andExpect(status().isPaymentRequired())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.status").value(402))
+                .andExpect(jsonPath("$.detail").value("Payment was declined. Try another payment method."));
 
         Map<String, Object> payment = latestPayment(washer);
         assertThat(payment.get("status")).isEqualTo("FAILED");
@@ -114,11 +120,13 @@ class PaymentsTest extends ApiTest {
     @DisplayName("UC4-06: If Stripe can't be reached, the customer gets an error instead of a booking")
     void stripeUnavailable() throws Exception {
         when(stripe.pay(eq("pm_card_visa"), anyInt(), any(), any(), any()))
-                .thenThrow(new ResponseStatusException(HttpStatus.BAD_GATEWAY));
+                .thenThrow(new ApplicationException(Reason.PAYMENT_PROVIDER_ERROR,
+                        "Could not complete the Stripe test payment."));
         Instant start = tomorrow();
 
         reserve(CUSTOMER, washer, start, start.plus(30, ChronoUnit.MINUTES))
-                .andExpect(status().is5xxServerError());
+                .andExpect(status().isBadGateway())
+                .andExpect(jsonPath("$.detail").value("Could not complete the Stripe test payment."));
     }
 
     @Test

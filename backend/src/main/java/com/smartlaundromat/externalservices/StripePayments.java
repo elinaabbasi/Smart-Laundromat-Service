@@ -1,27 +1,28 @@
-package com.smartlaundromat;
+package com.smartlaundromat.externalservices;
 
 import java.net.http.HttpClient;
 import java.time.Duration;
 import java.util.Locale;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.smartlaundromat.business.ApplicationException;
+import com.smartlaundromat.business.ApplicationException.Reason;
+import com.smartlaundromat.business.PaymentGateway;
+
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
-import org.springframework.web.server.ResponseStatusException;
-
-import com.fasterxml.jackson.databind.JsonNode;
 
 @Component
-class StripeTestPayments {
+class StripePayments implements PaymentGateway {
     private final String secretKey;
     private final RestClient stripe;
 
-    StripeTestPayments(RestClient.Builder builder, @Value("${laundromat.stripe.test-secret-key}") String secretKey) {
+    StripePayments(RestClient.Builder builder, @Value("${laundromat.stripe.test-secret-key}") String secretKey) {
         this.secretKey = secretKey.strip();
         var http = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(3)).build();
         var requests = new JdkClientHttpRequestFactory(http);
@@ -33,13 +34,8 @@ class StripeTestPayments {
                 .build();
     }
 
-    static void validateMethod(String method) {
-        if (!"pm_card_visa".equals(method) && !"pm_card_visa_chargeDeclined".equals(method)) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Choose a Stripe test payment method.");
-        }
-    }
-
-    String createCustomer(String name, String email, String idempotencyKey) {
+    @Override
+    public String createCustomer(String name, String email, String idempotencyKey) {
         var fields = new LinkedMultiValueMap<String, String>();
         fields.add("name", name);
         fields.add("email", email);
@@ -57,7 +53,8 @@ class StripeTestPayments {
         throw stripeUnavailable();
     }
 
-    Result pay(String method, int amountCents, String currency, String idempotencyKey, String customerId) {
+    @Override
+    public Result pay(String method, int amountCents, String currency, String idempotencyKey, String customerId) {
         String stripeCurrency = currency.toLowerCase(Locale.ROOT);
         var fields = new LinkedMultiValueMap<String, String>();
         fields.add("amount", Integer.toString(amountCents));
@@ -94,7 +91,8 @@ class StripeTestPayments {
         }
     }
 
-    void refund(String paymentIntentId, String idempotencyKey) {
+    @Override
+    public void refund(String paymentIntentId, String idempotencyKey) {
         var fields = new LinkedMultiValueMap<String, String>();
         fields.add("payment_intent", paymentIntentId);
 
@@ -108,7 +106,7 @@ class StripeTestPayments {
     private RestClient.RequestBodySpec postForm(
             String path, String idempotencyKey, LinkedMultiValueMap<String, String> fields) {
         if (!secretKey.startsWith("sk_test_") && !secretKey.startsWith("rk_test_")) {
-            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "Configure a Stripe sandbox key.");
+            throw new ApplicationException(Reason.PAYMENT_NOT_CONFIGURED, "Configure a Stripe sandbox key.");
         }
         return stripe.post()
                 .uri(path)
@@ -132,9 +130,7 @@ class StripeTestPayments {
         throw stripeUnavailable();
     }
 
-    private static ResponseStatusException stripeUnavailable() {
-        return new ResponseStatusException(HttpStatus.BAD_GATEWAY, "Could not complete the Stripe test payment.");
+    private static ApplicationException stripeUnavailable() {
+        return new ApplicationException(Reason.PAYMENT_PROVIDER_ERROR, "Could not complete the Stripe test payment.");
     }
-
-    record Result(boolean paid, String intentId) {}
 }

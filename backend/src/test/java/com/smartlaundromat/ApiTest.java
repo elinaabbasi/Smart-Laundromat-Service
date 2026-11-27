@@ -11,6 +11,8 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 
+import com.smartlaundromat.business.PaymentGateway;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -44,15 +46,15 @@ abstract class ApiTest {
     PasswordEncoder passwords;
 
     @MockitoBean
-    StripeTestPayments stripe;
+    PaymentGateway stripe;
 
     @BeforeEach
     void fakeStripe() {
         when(stripe.createCustomer(any(), any(), any())).thenReturn("cus_test");
         when(stripe.pay(eq("pm_card_visa"), anyInt(), any(), any(), any()))
-                .thenReturn(new StripeTestPayments.Result(true, "pi_test_paid"));
+                .thenReturn(new PaymentGateway.Result(true, "pi_test_paid"));
         when(stripe.pay(eq(DECLINED_CARD), anyInt(), any(), any(), any()))
-                .thenReturn(new StripeTestPayments.Result(false, "pi_test_declined"));
+                .thenReturn(new PaymentGateway.Result(false, "pi_test_declined"));
     }
 
     long addAccount(String name, String email, String role) {
