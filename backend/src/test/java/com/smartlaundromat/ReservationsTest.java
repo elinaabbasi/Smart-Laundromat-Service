@@ -106,17 +106,6 @@ class ReservationsTest extends ApiTest {
     }
 
     @Test
-    void malformedReservationJsonReturnsProblemDetail() throws Exception {
-        api.perform(post("/api/reservations")
-                        .with(user(CUSTOMER).roles("CUSTOMER")).with(csrf())
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"machineId\":"))
-                .andExpect(status().isBadRequest())
-                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
-                .andExpect(jsonPath("$.detail").value("Send a valid JSON request body with the expected field types."));
-    }
-
-    @Test
     @DisplayName("UC3-08: Booking a time that overlaps another reservation on the same machine returns 409")
     void overlappingReservation() throws Exception {
         String other = "other.booker@example.com";
@@ -180,4 +169,112 @@ class ReservationsTest extends ApiTest {
                         .contentType(MediaType.APPLICATION_JSON).content(body))
                 .andExpect(status().isForbidden());
     }
+    @Test
+    @DisplayName("UC3-13: Malformed reservation JSON returns 400 with problem details")
+    void malformedReservationJsonReturnsProblemDetail() throws Exception {
+        api.perform(post("/api/reservations")
+                        .with(user(CUSTOMER).roles("CUSTOMER")).with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"machineId\":"))
+                .andExpect(status().isBadRequest())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.detail").value("Send a valid JSON request body with the expected field types."));
+    }
+    @Test
+    @DisplayName("UC3-14: Booking an identical time slot returns 409")
+    void identicalReservationInterval() throws Exception {
+        String other = "identical.booker@example.com";
+        addCustomer(other);
+
+        Instant start = tomorrow();
+        Instant end = start.plus(60, ChronoUnit.MINUTES);
+
+        reserve(CUSTOMER, washer, start, end)
+                .andExpect(status().isCreated());
+
+        reserve(other, washer, start, end)
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.status").value(409))
+                .andExpect(jsonPath("$.detail").value(
+                        "This machine is already booked for the selected time."));
+        }
+
+     @Test
+     @DisplayName("UC3-15: Booking that overlaps the beginning of a reservation returns 409")
+     void overlappingBeginning() throws Exception {
+        String other = "beginning.booker@example.com"; 
+        addCustomer(other);
+
+        Instant start = tomorrow();
+
+        reserve(CUSTOMER, washer,
+            start.plus(30, ChronoUnit.MINUTES),
+            start.plus(90, ChronoUnit.MINUTES))
+            .andExpect(status().isCreated());
+
+        reserve(other, washer,
+            start,
+            start.plus(60, ChronoUnit.MINUTES))
+            .andExpect(status().isConflict())
+            .andExpect(jsonPath("$.status").value(409));
+        }
+
+        @Test
+        @DisplayName("UC3-16: Booking completely inside an existing reservation returns 409")
+        void reservationInsideAnother() throws Exception {
+        String other = "inside.booker@example.com";
+        addCustomer(other);
+
+        Instant start = tomorrow();
+
+        reserve(CUSTOMER, washer,
+                start,
+                start.plus(120, ChronoUnit.MINUTES))
+                .andExpect(status().isCreated());
+
+        reserve(other, washer,
+                start.plus(30, ChronoUnit.MINUTES),
+                start.plus(90, ChronoUnit.MINUTES))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.status").value(409));
+        }
+
+        @Test
+        @DisplayName("UC3-17: Booking that completely surrounds an existing reservation returns 409")
+        void reservationSurroundsAnother() throws Exception {
+        String other = "surround.booker@example.com";
+        addCustomer(other);
+
+        Instant start = tomorrow();
+
+        reserve(CUSTOMER, washer,
+                start.plus(30, ChronoUnit.MINUTES),
+                start.plus(90, ChronoUnit.MINUTES))
+                .andExpect(status().isCreated());
+
+        reserve(other, washer,
+                start,
+                start.plus(120, ChronoUnit.MINUTES))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.status").value(409));
+        }
+        @Test
+        @DisplayName("UC3-18: Booking that ends exactly when another reservation starts is allowed")
+        void adjacentBeforeExistingReservation() throws Exception {
+        String other = "adjacent.booker@example.com";
+        addCustomer(other);
+
+        Instant start = tomorrow();
+
+        reserve(CUSTOMER, washer,
+                start.plus(60, ChronoUnit.MINUTES),
+                start.plus(120, ChronoUnit.MINUTES))
+                .andExpect(status().isCreated());
+
+        reserve(other, washer,
+                start,
+                start.plus(60, ChronoUnit.MINUTES))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.status").value("Confirmed"));
+        }
 }

@@ -25,12 +25,12 @@ Automated tests for the Smart Laundromat API, covering every use case built so f
 |---|---|---:|---:|---:|
 | UC1 – Customer Accounts | CustomerAccountsTest | 13 | 13 | 0 |
 | UC2 – Search and Select a Machine | MachinesTest | 15 | 15 | 0 |
-| UC3 – Reservations | ReservationsTest | 13 | 13 | 0 |
+| UC3 – Reservations | ReservationsTest | 18 | 18 | 0 |
 | UC4 – Payments | PaymentsTest | 7 | 7 | 0 |
 | UC6 – Notifications | NotificationsTest | 4 | 4 | 0 |
 | UC8 – Administration | AdminDashboardTest | 10 | 10 | 0 |
 | UC9 – Analytics | AnalyticsSummaryTest | 4 | 4 | 0 |
-| **Total** | | **66** | **66** | **0** |
+| **Total** | | **71** | **71** | **0** |
 
 ## Test cases
 
@@ -98,6 +98,12 @@ Automated tests for the Smart Laundromat API, covering every use case built so f
 | UC3-10 | Booking a machine that is out of service or deactivated returns 409 | Pass |
 | UC3-11 | Booking a machine that doesn't exist returns 404 | Pass |
 | UC3-12 | Only signed-in customers can reserve: 401 when signed out, 403 for admins | Pass |
+| UC3-13 | Malformed reservation JSON | Returns 400 with structured problem details | PASS |
+| UC3-14 | Identical reservation interval | Returns 409 Conflict | PASS |
+| UC3-15 | Reservation overlaps the beginning of an existing reservation | Returns 409 Conflict | PASS |
+| UC3-16 | Reservation completely inside an existing reservation | Returns 409 Conflict | PASS |
+| UC3-17 | Reservation completely surrounds an existing reservation | Returns 409 Conflict | PASS |
+| UC3-18 | Reservation ends exactly when another reservation starts | Returns 201 Created with confirmed status | PASS |
 
 ### UC4: Payment
 
