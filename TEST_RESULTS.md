@@ -2,19 +2,20 @@
 
 Automated tests for the Smart Laundromat API, designed to verify functional requirements, input validation, security, and system reliability.
 
-**Initial test run:** November 21, 2026 · branch `testing`
-
-**Latest full regression test:** November 28, 2026
-
-**Overall result:** 78 tests, 78 passed, 0 failures, 0 errors, 0 skipped.
+**Overall result:** 98 tests, 98 passed, 0 failures, 0 errors, 0 skipped.
 
 **Build status:** SUCCESS
+
+**Execution time:** 11.081 seconds
 
 ## How the tests work
 
 - The tests are in `backend/src/test/java/com/smartlaundromat`, one class per use case. They use JUnit 5, Spring Boot's test support and MockMvc, which simulates HTTP requests to the API without starting an HTTP server.
+
 - Each test runs inside a database transaction that is rolled back when the test ends, so the tests leave no data behind.
-- The Stripe payment gateway is mocked that approves `pm_card_visa` and declines `pm_card_visa_chargeDeclined`, and accepts refunds, so the tests need no Stripe key or internet connection. The tests exercise application logic, security rules and SQL against PostgreSQL.
+
+- The mocked Stripe payment gateway approves `pm_card_visa` declines `pm_card_visa_chargeDeclined`, and accepts refunds, so the tests need no Stripe key or internet connection. The tests exercise application logic, security rules and SQL against PostgreSQL.
+
 - Test environment: Java 21, Maven 3.10, PostgreSQL 15.
 
 ## Test Summary
@@ -25,10 +26,11 @@ Automated tests for the Smart Laundromat API, designed to verify functional requ
 | UC2 – Search and Select a Machine | MachinesTest | 15 | 15 | 0 |
 | UC3 – Reservations | ReservationsTest | 18 | 18 | 0 |
 | UC4 – Payments | PaymentsTest | 14 | 14 | 0 |
+| UC5 – Machine Status Simulation | MachineStatusTest | 20 | 20 | 0 |
 | UC6 – Notifications | NotificationsTest | 4 | 4 | 0 |
 | UC8 – Administration | AdminDashboardTest | 10 | 10 | 0 |
 | UC9 – Analytics | AnalyticsSummaryTest | 4 | 4 | 0 |
-| **Total** | | **78** | **78** | **0** |
+| **Total** | | **98** | **98** | **0** |
 
 ## Test cases
 
@@ -49,7 +51,6 @@ Automated tests for the Smart Laundromat API, designed to verify functional requ
 | UC1-11 | Passwords between 8 and 128 characters are accepted, while passwords outside these boundaries return 400 | Pass |
 | UC1-12 | A newly registered customer can sign in immediately and access their empty reservation list | Pass |
 | UC1-13 | Registering without a CSRF token returns 403 | Pass |
-
 
 ### UC2: Search and select a machine
 
@@ -113,6 +114,31 @@ Automated tests for the Smart Laundromat API, designed to verify functional requ
 | UC4-13 | Payment records after retry: both failed and successful payment attempts are preserved | Pass |
 | UC4-14 | Maximum-duration pricing: washer costs $40 and dryer costs $24; API, database and gateway amounts match | Pass |
 
+### UC5: Machine Status Simulation
+
+| ID | Test case (expected behaviour) | Result |
+|---|---|---|
+| UC5-01 | An admin can change an available machine to reserved; the API and database reflect the new status | Pass |
+| UC5-02 | An admin can change a reserved machine to in use | Pass |
+| UC5-03 | An admin can return an in-use machine to available | Pass |
+| UC5-04 | An admin can mark an available machine as out of service | Pass |
+| UC5-05 | An admin can restore an out-of-service machine to available | Pass |
+| UC5-06 | Invalid, empty, lowercase and whitespace-only statuses return 400 and leave the status unchanged | Pass |
+| UC5-07 | Customers attempting to change machine status receive 403; status remains unchanged | Pass |
+| UC5-08 | Signed-out users attempting to change machine status receive 401; status remains unchanged | Pass |
+| UC5-09 | Booking a reserved machine returns 409 without triggering payment | Pass |
+| UC5-10 | Booking an in-use machine returns 409 without triggering payment | Pass |
+| UC5-11 | Booking an out-of-service machine returns 409 without triggering payment | Pass |
+| UC5-12 | Restoring available status allows a previously rejected booking to succeed with 201 | Pass |
+| UC5-13 | Updating a nonexistent machine returns 404 | Pass |
+| UC5-14 | Repeatedly saving the same status succeeds without changing that status | Pass |
+| UC5-15 | Missing and null statuses return 400 and leave the status unchanged | Pass |
+| UC5-16 | Manual status changes preserve an existing confirmed reservation and successful payment without triggering a refund; the reservation remains visible to the customer | Pass |
+| UC5-17 | Changing one machine status leaves other machines unchanged | Pass |
+| UC5-18 | Availability filtering excludes reserved, in-use and out-of-service machines and includes them again when restored to available | Pass |
+| UC5-19 | Updating machine status without a CSRF token returns 403 and leaves the status unchanged | Pass |
+| UC5-20 | An admin can update a dryer status; the API and database reflect the change | Pass |
+
 ### UC6: Notifications
 
 | ID | Test case (expected behaviour) | Result |
@@ -159,7 +185,11 @@ Three tests check behaviour that differs from what the Milestone 1 design docume
 ## Testing limitations
 
 - Payment gateway responses are mocked; live Stripe sandbox transactions are not verified by this suite.
+
 - Reservation overlap tests use sequential requests; simultaneous requests are not independently tested.
+
+- Machine status changes are manual; the suite verifies reservation preservation but does not verify physical usage against reservation schedules.
+
 - Browser-based end-to-end testing is outside the scope of this API test suite.
 
 ## Running the tests
@@ -167,19 +197,16 @@ Three tests check behaviour that differs from what the Milestone 1 design docume
 1. Start the database the same way as for the app (`docker compose up -d db`), or point the tests at another PostgreSQL database with `DB_URL`, `DB_USER` and `DB_PASSWORD`.
 
 2. From the `backend` folder, run the full test suite:
-
    ```sh
    mvn test
    ```
 
 3. To run the tests for a specific use case, specify its test class. For example, to run UC1:
-
    ```sh
    mvn -Dtest=CustomerAccountsTest test
    ```
 
 4. To run an individual test method, specify the class and method name:
-
    ```sh
    mvn -Dtest=CustomerAccountsTest#customerCanViewOwnReservations test
    ```
