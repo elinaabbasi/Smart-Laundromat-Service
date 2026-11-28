@@ -12,9 +12,9 @@ Automated tests for the Smart Laundromat API, designed to verify functional requ
 
 ## How the tests work
 
-- The tests are in `backend/src/test/java/com/smartlaundromat`, one class per use case. They use JUnit 5, Spring Boot's test support and MockMvc, which sends real HTTP requests to the API without starting a server.
+- The tests are in `backend/src/test/java/com/smartlaundromat`, one class per use case. They use JUnit 5, Spring Boot's test support and MockMvc, which simulates HTTP requests to the API without starting an HTTP server.
 - Each test runs inside a database transaction that is rolled back when the test ends, so the tests leave no data behind.
-- Stripe is replaced with a fake that approves `pm_card_visa` and declines `pm_card_visa_chargeDeclined`, and accepts refunds, so the tests need no Stripe key or internet connection. Everything else, including security rules and SQL, is the real application code.
+- The Stripe payment gateway is mocked that approves `pm_card_visa` and declines `pm_card_visa_chargeDeclined`, and accepts refunds, so the tests need no Stripe key or internet connection. The tests exercise application logic, security rules and SQL against PostgreSQL.
 - Test environment: Java 21, Maven 3.10, PostgreSQL 15.
 
 ## Test Summary
@@ -50,15 +50,6 @@ Automated tests for the Smart Laundromat API, designed to verify functional requ
 | UC1-12 | A newly registered customer can sign in immediately and access their empty reservation list | Pass |
 | UC1-13 | Registering without a CSRF token returns 403 | Pass |
 
-**Test execution results (November 28, 2026):**
-
-- Tests run: 13
-- Passed: 13
-- Failures: 0
-- Errors: 0
-- Skipped: 0
-- Execution time: 3.920 seconds
-- Build result: SUCCESS
 
 ### UC2: Search and select a machine
 
@@ -71,14 +62,14 @@ Automated tests for the Smart Laundromat API, designed to verify functional requ
 | UC2-05 | Filtering by a type that doesn't exist returns 400 | Pass |
 | UC2-06 | Selecting a machine returns its details, and a deactivated machine shows as unavailable | Pass |
 | UC2-07 | Selecting a machine that doesn't exist returns 404 | Pass |
-| UC2-08 | Combined type and availability filtering | Only available machines of the requested type are returned | PASS |
-| UC2-09 | Availability filtering across all machine statuses | Reserved, in-use, out-of-service and deactivated machines are excluded | PASS |
-| UC2-10 | Display all machine statuses without availability filtering | All machines are returned with their correct statuses, including deactivated machines as UNAVAILABLE | PASS |
-| UC2-11 | No machines match the search criteria | Returns 200 OK with an empty array | PASS |
-| UC2-12 | Case-insensitive and whitespace-tolerant type filtering | Machine type is correctly normalized before filtering | PASS |
-| UC2-13 | Missing, empty or blank machine type filter | Machines of all types are returned | PASS |
-| UC2-14 | Authentication required for individual machine selection | Unauthenticated request returns 401; authenticated request returns machine details | PASS |
-| UC2-15 | Invalid query parameters and machine ID formats | Malformed inputs return 400; nonexistent numeric IDs return 404 | PASS |
+| UC2-08 | Combined type and availability filtering: only available machines of the requested type are returned | Pass |
+| UC2-09 | Availability filtering across all machine statuses: reserved, in-use, out-of-service and deactivated machines are excluded | Pass |
+| UC2-10 | Display all machine statuses without availability filtering: all machines are returned with their correct statuses, including deactivated machines as UNAVAILABLE | Pass |
+| UC2-11 | No machines match the search criteria: returns 200 OK with an empty array | Pass |
+| UC2-12 | Case-insensitive and whitespace-tolerant type filtering: machine type is correctly normalized before filtering | Pass |
+| UC2-13 | Missing, empty or blank machine type filter: machines of all types are returned | Pass |
+| UC2-14 | Authentication required for individual machine selection: unauthenticated request returns 401; authenticated request returns machine details | Pass |
+| UC2-15 | Invalid query parameters and machine ID formats: malformed inputs return 400; nonexistent numeric IDs return 404 | Pass |
 
 ### UC3: Schedule and reserve a machine
 
@@ -96,12 +87,12 @@ Automated tests for the Smart Laundromat API, designed to verify functional requ
 | UC3-10 | Booking a machine that is out of service or deactivated returns 409 | Pass |
 | UC3-11 | Booking a machine that doesn't exist returns 404 | Pass |
 | UC3-12 | Only signed-in customers can reserve: 401 when signed out, 403 for admins | Pass |
-| UC3-13 | Malformed reservation JSON | Returns 400 with structured problem details | PASS |
-| UC3-14 | Identical reservation interval | Returns 409 Conflict | PASS |
-| UC3-15 | Reservation overlaps the beginning of an existing reservation | Returns 409 Conflict | PASS |
-| UC3-16 | Reservation completely inside an existing reservation | Returns 409 Conflict | PASS |
-| UC3-17 | Reservation completely surrounds an existing reservation | Returns 409 Conflict | PASS |
-| UC3-18 | Reservation ends exactly when another reservation starts | Returns 201 Created with confirmed status | PASS |
+| UC3-13 | Malformed reservation JSON: returns 400 with structured problem details | Pass |
+| UC3-14 | Identical reservation interval: returns 409 Conflict | Pass |
+| UC3-15 | Reservation overlaps the beginning of an existing reservation: returns 409 Conflict | Pass |
+| UC3-16 | Reservation completely inside an existing reservation: returns 409 Conflict | Pass |
+| UC3-17 | Reservation completely surrounds an existing reservation: returns 409 Conflict | Pass |
+| UC3-18 | Reservation ends exactly when another reservation starts: returns 201 Created with confirmed status | Pass |
 
 ### UC4: Payment
 
@@ -114,13 +105,13 @@ Automated tests for the Smart Laundromat API, designed to verify functional requ
 | UC4-05 | A declined reservation doesn't appear in the customer's reservations | Pass |
 | UC4-06 | If Stripe can't be reached, the customer gets an error instead of a booking | Pass |
 | UC4-07 | Customers only see their own reservations and payments | Pass |
-| UC4-08 | Unsupported payment method | Returns 400 without triggering payment | PASS |
-| UC4-09 | Missing, empty or whitespace-only payment method | Returns 400 without triggering payment | PASS |
-| UC4-10 | Overlapping reservation payment prevention | Only the valid reservation triggers payment | PASS |
-| UC4-11 | Invalid reservation payment prevention | Invalid reservations do not trigger payment | PASS |
-| UC4-12 | Stripe provider failure | Returns 502 and no payment record is created | PASS |
-| UC4-13 | Payment records after retry | Both failed and successful payment attempts are preserved | PASS |
-| UC4-14 | Maximum-duration pricing | Washer costs $40 and dryer costs $24; API, database and gateway amounts match | PASS |
+| UC4-08 | Unsupported payment method: returns 400 without triggering payment | Pass |
+| UC4-09 | Missing, empty or whitespace-only payment method: returns 400 without triggering payment | Pass |
+| UC4-10 | Overlapping reservation payment prevention: only the valid reservation triggers payment | Pass |
+| UC4-11 | Invalid reservation payment prevention: invalid reservations do not trigger payment | Pass |
+| UC4-12 | Stripe provider failure: returns 502 and no payment record is created | Pass |
+| UC4-13 | Payment records after retry: both failed and successful payment attempts are preserved | Pass |
+| UC4-14 | Maximum-duration pricing: washer costs $40 and dryer costs $24; API, database and gateway amounts match | Pass |
 
 ### UC6: Notifications
 
@@ -164,6 +155,12 @@ Three tests check behaviour that differs from what the Milestone 1 design docume
 | UC2-01 | Browsing machines is public | Customers sign in before browsing machines |
 | UC3-03 | Machines are bookable up to 14 days ahead | There is no limit on how far ahead a machine can be booked |
 | UC3-05 | Reservations are aligned to 30-minute blocks | A reservation can start at any minute; its length must be in 30-minute blocks |
+
+## Testing limitations
+
+- Payment gateway responses are mocked; live Stripe sandbox transactions are not verified by this suite.
+- Reservation overlap tests use sequential requests; simultaneous requests are not independently tested.
+- Browser-based end-to-end testing is outside the scope of this API test suite.
 
 ## Running the tests
 
