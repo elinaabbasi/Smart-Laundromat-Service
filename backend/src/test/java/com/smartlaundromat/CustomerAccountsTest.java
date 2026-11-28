@@ -1,5 +1,7 @@
 package com.smartlaundromat;
 
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.not;
@@ -103,6 +105,7 @@ class CustomerAccountsTest extends ApiTest {
     }
 
     @Test
+    @DisplayName("UC1-13: Registration without a CSRF token returns 403")
     void missingCsrfTokenReturnsProblemDetail() throws Exception {
         api.perform(post("/api/register"))
                 .andExpect(status().isForbidden())
@@ -127,5 +130,147 @@ class CustomerAccountsTest extends ApiTest {
     void signedOutRequestsAreRejected() throws Exception {
         api.perform(get("/api/reservations")).andExpect(status().isUnauthorized());
         api.perform(get("/api/session")).andExpect(status().isUnauthorized());
+    }
+
+    @Test
+@DisplayName("UC1-08: A signed-in customer can view their own reservations")
+void customerCanViewOwnReservations() throws Exception {
+    String email = "myreservations@example.com";
+    addCustomer(email);
+
+    long washer = addMachine(
+            "UC1 Test Washer", "WASHER", "AVAILABLE");
+
+    Instant start = tomorrow();
+
+    reserve(email, washer, start,
+            start.plus(30, ChronoUnit.MINUTES))
+            .andExpect(status().isCreated());
+
+    MockHttpSession session = signIn(email, PASSWORD);
+
+    api.perform(get("/api/reservations").session(session))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.reservations.length()").value(1))
+            .andExpect(jsonPath("$.reservations[0].machine")
+                    .value("UC1 Test Washer"))
+            .andExpect(jsonPath("$.reservations[0].status")
+                    .value("Confirmed"));
+    }
+    @Test
+@DisplayName("UC1-09: Customers can only view their own reservations")
+void customersCannotViewOtherReservations() throws Exception {
+    String customerA = "customer.a@example.com";
+    String customerB = "customer.b@example.com";
+
+    addCustomer(customerA);
+    addCustomer(customerB);
+
+    long washer = addMachine(
+            "Customer A Washer", "WASHER", "AVAILABLE");
+
+    long dryer = addMachine(
+            "Customer B Dryer", "DRYER", "AVAILABLE");
+
+    Instant start = tomorrow();
+    Instant end = start.plus(30, ChronoUnit.MINUTES);
+
+    reserve(customerA, washer, start, end)
+            .andExpect(status().isCreated());
+
+    reserve(customerB, dryer, start, end)
+            .andExpect(status().isCreated());
+
+    MockHttpSession sessionA = signIn(customerA, PASSWORD);
+    MockHttpSession sessionB = signIn(customerB, PASSWORD);
+
+    api.perform(get("/api/reservations").session(sessionA))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.reservations.length()").value(1))
+            .andExpect(jsonPath("$.reservations[0].machine")
+                    .value("Customer A Washer"));
+
+    api.perform(get("/api/reservations").session(sessionB))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.reservations.length()").value(1))
+            .andExpect(jsonPath("$.reservations[0].machine")
+                    .value("Customer B Dryer"));
+    }
+
+    @Test
+@DisplayName("UC1-10: Protected resources cannot be accessed after logout")
+void protectedResourcesAreRejectedAfterLogout() throws Exception {
+    String email = "logout.access@example.com";
+    addCustomer(email);
+
+    MockHttpSession session = signIn(email, PASSWORD);
+
+    // Verify access before signing out.
+    api.perform(get("/api/reservations").session(session))
+            .andExpect(status().isOk());
+
+    api.perform(post("/api/logout")
+                    .session(session)
+                    .with(csrf()))
+            .andExpect(status().isNoContent());
+
+    assertThat(session.isInvalid()).isTrue();
+
+    // Attempt to access protected resources using the old session.
+    api.perform(get("/api/reservations").session(session))
+            .andExpect(status().isUnauthorized());
+
+    api.perform(get("/api/session").session(session))
+            .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+@DisplayName("UC1-11: Registration enforces password length boundaries")
+void passwordLengthBoundaries() throws Exception {
+    register("Boundary Test", "boundary7@example.com",
+            "a".repeat(7))
+            .andExpect(status().isBadRequest());
+
+    register("Boundary Test", "boundary8@example.com",
+            "a".repeat(8))
+            .andExpect(status().isCreated());
+
+    register("Boundary Test", "boundary9@example.com",
+            "a".repeat(9))
+            .andExpect(status().isCreated());
+
+    register("Boundary Test", "boundary127@example.com",
+            "a".repeat(127))
+            .andExpect(status().isCreated());
+
+    register("Boundary Test", "boundary128@example.com",
+            "a".repeat(128))
+            .andExpect(status().isCreated());
+
+    register("Boundary Test", "boundary129@example.com",
+            "a".repeat(129))
+            .andExpect(status().isBadRequest());
+    }
+
+    @Test
+@DisplayName("UC1-12: A newly registered customer can immediately sign in")
+void newlyRegisteredCustomerCanSignIn() throws Exception {
+    String email = "newcustomer@example.com";
+
+    register("New Customer", email, PASSWORD)
+            .andExpect(status().isCreated());
+
+    MockHttpSession session = signIn(email, PASSWORD);
+
+    assertThat(session).isNotNull();
+
+    api.perform(get("/api/session").session(session))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.role").value("CUSTOMER"));
+
+    api.perform(get("/api/reservations").session(session))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.name").value("New Customer"))
+            .andExpect(jsonPath("$.reservations.length()").value(0));
     }
 }

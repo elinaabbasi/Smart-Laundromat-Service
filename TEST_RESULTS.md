@@ -1,9 +1,14 @@
 # Test Cases and Results
 
-Automated tests for the Smart Laundromat API, covering every use case built so far (UC1, UC2, UC3, UC4, UC6, UC8 and UC9). UC5 (status simulation) and UC10 (AI search) aren't built yet, so they have no tests.
+Automated tests for the Smart Laundromat API, covering every use case built so far (UC1, UC2, UC3, UC4, UC6, UC8 and UC9). UC5 (status simulation) and UC10 (AI search) aren't built yet, so they have no dedicated tests.
 
-**Run on:** November 21, 2026 · branch `testing`
-**Result:** 51 tests, 51 passed, 0 failed
+**Initial test run:** November 21, 2026 · branch `testing`
+
+**Latest UC1 test run:** November 28, 2026
+
+**UC1 result:** 13 tests, 13 passed, 0 failed
+
+**Combined latest recorded results:** 57 tests, 57 passed, 0 failed
 
 ## How the tests work
 
@@ -14,16 +19,16 @@ Automated tests for the Smart Laundromat API, covering every use case built so f
 
 ## Summary
 
-| Use case | Tests | Passed | Failed |
-|---|---|---|---|
-| UC1: Customer registration and sign-in | 7 | 7 | 0 |
-| UC2: Search and select a machine | 7 | 7 | 0 |
-| UC3: Schedule and reserve a machine | 12 | 12 | 0 |
-| UC4: Payment | 7 | 7 | 0 |
-| UC6: Notifications | 4 | 4 | 0 |
-| UC8: Administration | 10 | 10 | 0 |
-| UC9: Analytics | 4 | 4 | 0 |
-| **Total** | **51** | **51** | **0** |
+| Use case | Tests | Passed | Failed | Last tested |
+|---|---|---|---|---|
+| UC1: Customer registration and sign-in | 13 | 13 | 0 | Nov 28, 2026 |
+| UC2: Search and select a machine | 7 | 7 | 0 | Nov 21, 2026 |
+| UC3: Schedule and reserve a machine | 12 | 12 | 0 | Nov 21, 2026 |
+| UC4: Payment | 7 | 7 | 0 | Nov 21, 2026 |
+| UC6: Notifications | 4 | 4 | 0 | Nov 21, 2026 |
+| UC8: Administration | 10 | 10 | 0 | Nov 21, 2026 |
+| UC9: Analytics | 4 | 4 | 0 | Nov 21, 2026 |
+| **Total** | **57** | **57** | **0** | |
 
 ## Test cases
 
@@ -38,6 +43,22 @@ Automated tests for the Smart Laundromat API, covering every use case built so f
 | UC1-05 | Signing in with a wrong password or unknown email returns 401 | Pass |
 | UC1-06 | Signing out ends the session | Pass |
 | UC1-07 | Customer pages return 401 when nobody is signed in | Pass |
+| UC1-08 | A signed-in customer can view their own confirmed reservations | Pass |
+| UC1-09 | Customers can only view their own reservations and cannot see another customer's reservations | Pass |
+| UC1-10 | Accessing protected pages after signing out returns 401 | Pass |
+| UC1-11 | Passwords between 8 and 128 characters are accepted, while passwords outside these boundaries return 400 | Pass |
+| UC1-12 | A newly registered customer can sign in immediately and access their empty reservation list | Pass |
+| UC1-13 | Registering without a CSRF token returns 403 | Pass |
+
+**Test execution results (November 28, 2026):**
+
+- Tests run: 13
+- Passed: 13
+- Failures: 0
+- Errors: 0
+- Skipped: 0
+- Execution time: 3.920 seconds
+- Build result: SUCCESS
 
 ### UC2: Search and select a machine
 
@@ -126,10 +147,23 @@ Three tests check behaviour that differs from what the Milestone 1 design docume
 ## Running the tests
 
 1. Start the database the same way as for the app (`docker compose up -d db`), or point the tests at another PostgreSQL database with `DB_URL`, `DB_USER` and `DB_PASSWORD`.
-2. From the `backend` folder, run:
+
+2. From the `backend` folder, run the full test suite:
 
    ```sh
    mvn test
+   ```
+
+3. To run the tests for a specific use case, specify its test class. For example, to run UC1:
+
+   ```sh
+   mvn -Dtest=CustomerAccountsTest test
+   ```
+
+4. To run an individual test method, specify the class and method name:
+
+   ```sh
+   mvn -Dtest=CustomerAccountsTest#customerCanViewOwnReservations test
    ```
 
 Maven prints a pass/fail count for each test class. Detailed reports are written to `backend/target/surefire-reports`.
