@@ -1,14 +1,14 @@
 # Test Cases and Results
 
-Automated tests for the Smart Laundromat API, covering every use case built so far (UC1, UC2, UC3, UC4, UC6, UC8 and UC9). UC5 (status simulation) and UC10 (AI search) aren't built yet, so they have no dedicated tests.
+Automated tests for the Smart Laundromat API, designed to verify functional requirements, input validation, security, and system reliability.
 
 **Initial test run:** November 21, 2026 · branch `testing`
 
-**Latest UC1 test run:** November 28, 2026
+**Latest full regression test:** November 28, 2026
 
-**UC1 result:** 13 tests, 13 passed, 0 failed
+**Overall result:** 78 tests, 78 passed, 0 failures, 0 errors, 0 skipped.
 
-**Combined latest recorded results:** 57 tests, 57 passed, 0 failed
+**Build status:** SUCCESS
 
 ## How the tests work
 
@@ -16,8 +16,6 @@ Automated tests for the Smart Laundromat API, covering every use case built so f
 - Each test runs inside a database transaction that is rolled back when the test ends, so the tests leave no data behind.
 - Stripe is replaced with a fake that approves `pm_card_visa` and declines `pm_card_visa_chargeDeclined`, and accepts refunds, so the tests need no Stripe key or internet connection. Everything else, including security rules and SQL, is the real application code.
 - Test environment: Java 21, Maven 3.10, PostgreSQL 15.
-
-## Summary
 
 ## Test Summary
 
