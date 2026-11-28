@@ -19,16 +19,18 @@ Automated tests for the Smart Laundromat API, covering every use case built so f
 
 ## Summary
 
-| Use case | Tests | Passed | Failed | Last tested |
-|---|---|---|---|---|
-| UC1: Customer registration and sign-in | 13 | 13 | 0 | Nov 28, 2026 |
-| UC2: Search and select a machine | 7 | 7 | 0 | Nov 21, 2026 |
-| UC3: Schedule and reserve a machine | 12 | 12 | 0 | Nov 21, 2026 |
-| UC4: Payment | 7 | 7 | 0 | Nov 21, 2026 |
-| UC6: Notifications | 4 | 4 | 0 | Nov 21, 2026 |
-| UC8: Administration | 10 | 10 | 0 | Nov 21, 2026 |
-| UC9: Analytics | 4 | 4 | 0 | Nov 21, 2026 |
-| **Total** | **57** | **57** | **0** | |
+## Test Summary
+
+| Use Case | Test Class | Tests | Passed | Failed |
+|---|---|---:|---:|---:|
+| UC1 – Customer Accounts | CustomerAccountsTest | 13 | 13 | 0 |
+| UC2 – Search and Select a Machine | MachinesTest | 15 | 15 | 0 |
+| UC3 – Reservations | ReservationsTest | 13 | 13 | 0 |
+| UC4 – Payments | PaymentsTest | 7 | 7 | 0 |
+| UC6 – Notifications | NotificationsTest | 4 | 4 | 0 |
+| UC8 – Administration | AdminDashboardTest | 10 | 10 | 0 |
+| UC9 – Analytics | AnalyticsSummaryTest | 4 | 4 | 0 |
+| **Total** | | **66** | **66** | **0** |
 
 ## Test cases
 
@@ -71,6 +73,14 @@ Automated tests for the Smart Laundromat API, covering every use case built so f
 | UC2-05 | Filtering by a type that doesn't exist returns 400 | Pass |
 | UC2-06 | Selecting a machine returns its details, and a deactivated machine shows as unavailable | Pass |
 | UC2-07 | Selecting a machine that doesn't exist returns 404 | Pass |
+| UC2-08 | Combined type and availability filtering | Only available machines of the requested type are returned | PASS |
+| UC2-09 | Availability filtering across all machine statuses | Reserved, in-use, out-of-service and deactivated machines are excluded | PASS |
+| UC2-10 | Display all machine statuses without availability filtering | All machines are returned with their correct statuses, including deactivated machines as UNAVAILABLE | PASS |
+| UC2-11 | No machines match the search criteria | Returns 200 OK with an empty array | PASS |
+| UC2-12 | Case-insensitive and whitespace-tolerant type filtering | Machine type is correctly normalized before filtering | PASS |
+| UC2-13 | Missing, empty or blank machine type filter | Machines of all types are returned | PASS |
+| UC2-14 | Authentication required for individual machine selection | Unauthenticated request returns 401; authenticated request returns machine details | PASS |
+| UC2-15 | Invalid query parameters and machine ID formats | Malformed inputs return 400; nonexistent numeric IDs return 404 | PASS |
 
 ### UC3: Schedule and reserve a machine
 
