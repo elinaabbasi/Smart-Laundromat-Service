@@ -4,6 +4,10 @@ const signInForm = get('sign-in-form');
 const registerForm = get('register-form');
 
 function formatLabel(value) {
+  if (value === 'OUT_OF_SERVICE') {
+    return 'Out of Service';
+  }
+
   return value.replaceAll('_', ' ').toLowerCase()
     .replace(/\b[a-z]/g, (letter) => letter.toUpperCase());
 }
