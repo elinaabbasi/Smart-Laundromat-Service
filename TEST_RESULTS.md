@@ -1,9 +1,14 @@
 # Test Cases and Results
 
-Automated tests for the Smart Laundromat API, covering every use case built so far (UC1, UC2, UC3, UC4, UC6, UC8 and UC9). UC5 (status simulation) and UC10 (AI search) aren't built yet, so they have no tests.
+Automated tests for the Smart Laundromat API, covering every use case built so far (UC1, UC2, UC3, UC4, UC6, UC8 and UC9). UC5 (status simulation) and UC10 (AI search) aren't built yet, so they have no dedicated tests.
 
-**Run on:** November 21, 2026 · branch `testing`
-**Result:** 51 tests, 51 passed, 0 failed
+**Initial test run:** November 21, 2026 · branch `testing`
+
+**Latest UC1 test run:** November 28, 2026
+
+**UC1 result:** 13 tests, 13 passed, 0 failed
+
+**Combined latest recorded results:** 57 tests, 57 passed, 0 failed
 
 ## How the tests work
 
@@ -14,16 +19,18 @@ Automated tests for the Smart Laundromat API, covering every use case built so f
 
 ## Summary
 
-| Use case | Tests | Passed | Failed |
-|---|---|---|---|
-| UC1: Customer registration and sign-in | 7 | 7 | 0 |
-| UC2: Search and select a machine | 7 | 7 | 0 |
-| UC3: Schedule and reserve a machine | 12 | 12 | 0 |
-| UC4: Payment | 7 | 7 | 0 |
-| UC6: Notifications | 4 | 4 | 0 |
-| UC8: Administration | 10 | 10 | 0 |
-| UC9: Analytics | 4 | 4 | 0 |
-| **Total** | **51** | **51** | **0** |
+## Test Summary
+
+| Use Case | Test Class | Tests | Passed | Failed |
+|---|---|---:|---:|---:|
+| UC1 – Customer Accounts | CustomerAccountsTest | 13 | 13 | 0 |
+| UC2 – Search and Select a Machine | MachinesTest | 15 | 15 | 0 |
+| UC3 – Reservations | ReservationsTest | 18 | 18 | 0 |
+| UC4 – Payments | PaymentsTest | 14 | 14 | 0 |
+| UC6 – Notifications | NotificationsTest | 4 | 4 | 0 |
+| UC8 – Administration | AdminDashboardTest | 10 | 10 | 0 |
+| UC9 – Analytics | AnalyticsSummaryTest | 4 | 4 | 0 |
+| **Total** | | **78** | **78** | **0** |
 
 ## Test cases
 
@@ -38,6 +45,22 @@ Automated tests for the Smart Laundromat API, covering every use case built so f
 | UC1-05 | Signing in with a wrong password or unknown email returns 401 | Pass |
 | UC1-06 | Signing out ends the session | Pass |
 | UC1-07 | Customer pages return 401 when nobody is signed in | Pass |
+| UC1-08 | A signed-in customer can view their own confirmed reservations | Pass |
+| UC1-09 | Customers can only view their own reservations and cannot see another customer's reservations | Pass |
+| UC1-10 | Accessing protected pages after signing out returns 401 | Pass |
+| UC1-11 | Passwords between 8 and 128 characters are accepted, while passwords outside these boundaries return 400 | Pass |
+| UC1-12 | A newly registered customer can sign in immediately and access their empty reservation list | Pass |
+| UC1-13 | Registering without a CSRF token returns 403 | Pass |
+
+**Test execution results (November 28, 2026):**
+
+- Tests run: 13
+- Passed: 13
+- Failures: 0
+- Errors: 0
+- Skipped: 0
+- Execution time: 3.920 seconds
+- Build result: SUCCESS
 
 ### UC2: Search and select a machine
 
@@ -50,6 +73,14 @@ Automated tests for the Smart Laundromat API, covering every use case built so f
 | UC2-05 | Filtering by a type that doesn't exist returns 400 | Pass |
 | UC2-06 | Selecting a machine returns its details, and a deactivated machine shows as unavailable | Pass |
 | UC2-07 | Selecting a machine that doesn't exist returns 404 | Pass |
+| UC2-08 | Combined type and availability filtering | Only available machines of the requested type are returned | PASS |
+| UC2-09 | Availability filtering across all machine statuses | Reserved, in-use, out-of-service and deactivated machines are excluded | PASS |
+| UC2-10 | Display all machine statuses without availability filtering | All machines are returned with their correct statuses, including deactivated machines as UNAVAILABLE | PASS |
+| UC2-11 | No machines match the search criteria | Returns 200 OK with an empty array | PASS |
+| UC2-12 | Case-insensitive and whitespace-tolerant type filtering | Machine type is correctly normalized before filtering | PASS |
+| UC2-13 | Missing, empty or blank machine type filter | Machines of all types are returned | PASS |
+| UC2-14 | Authentication required for individual machine selection | Unauthenticated request returns 401; authenticated request returns machine details | PASS |
+| UC2-15 | Invalid query parameters and machine ID formats | Malformed inputs return 400; nonexistent numeric IDs return 404 | PASS |
 
 ### UC3: Schedule and reserve a machine
 
@@ -67,6 +98,12 @@ Automated tests for the Smart Laundromat API, covering every use case built so f
 | UC3-10 | Booking a machine that is out of service or deactivated returns 409 | Pass |
 | UC3-11 | Booking a machine that doesn't exist returns 404 | Pass |
 | UC3-12 | Only signed-in customers can reserve: 401 when signed out, 403 for admins | Pass |
+| UC3-13 | Malformed reservation JSON | Returns 400 with structured problem details | PASS |
+| UC3-14 | Identical reservation interval | Returns 409 Conflict | PASS |
+| UC3-15 | Reservation overlaps the beginning of an existing reservation | Returns 409 Conflict | PASS |
+| UC3-16 | Reservation completely inside an existing reservation | Returns 409 Conflict | PASS |
+| UC3-17 | Reservation completely surrounds an existing reservation | Returns 409 Conflict | PASS |
+| UC3-18 | Reservation ends exactly when another reservation starts | Returns 201 Created with confirmed status | PASS |
 
 ### UC4: Payment
 
@@ -79,6 +116,13 @@ Automated tests for the Smart Laundromat API, covering every use case built so f
 | UC4-05 | A declined reservation doesn't appear in the customer's reservations | Pass |
 | UC4-06 | If Stripe can't be reached, the customer gets an error instead of a booking | Pass |
 | UC4-07 | Customers only see their own reservations and payments | Pass |
+| UC4-08 | Unsupported payment method | Returns 400 without triggering payment | PASS |
+| UC4-09 | Missing, empty or whitespace-only payment method | Returns 400 without triggering payment | PASS |
+| UC4-10 | Overlapping reservation payment prevention | Only the valid reservation triggers payment | PASS |
+| UC4-11 | Invalid reservation payment prevention | Invalid reservations do not trigger payment | PASS |
+| UC4-12 | Stripe provider failure | Returns 502 and no payment record is created | PASS |
+| UC4-13 | Payment records after retry | Both failed and successful payment attempts are preserved | PASS |
+| UC4-14 | Maximum-duration pricing | Washer costs $40 and dryer costs $24; API, database and gateway amounts match | PASS |
 
 ### UC6: Notifications
 
@@ -126,10 +170,23 @@ Three tests check behaviour that differs from what the Milestone 1 design docume
 ## Running the tests
 
 1. Start the database the same way as for the app (`docker compose up -d db`), or point the tests at another PostgreSQL database with `DB_URL`, `DB_USER` and `DB_PASSWORD`.
-2. From the `backend` folder, run:
+
+2. From the `backend` folder, run the full test suite:
 
    ```sh
    mvn test
+   ```
+
+3. To run the tests for a specific use case, specify its test class. For example, to run UC1:
+
+   ```sh
+   mvn -Dtest=CustomerAccountsTest test
+   ```
+
+4. To run an individual test method, specify the class and method name:
+
+   ```sh
+   mvn -Dtest=CustomerAccountsTest#customerCanViewOwnReservations test
    ```
 
 Maven prints a pass/fail count for each test class. Detailed reports are written to `backend/target/surefire-reports`.
