@@ -12,6 +12,11 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
@@ -142,5 +147,199 @@ class PaymentsTest extends ApiTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.reservations[*].machine", hasItem("Test Dryer Pay")))
                 .andExpect(jsonPath("$.reservations[*].machine", not(hasItem("Test Washer Pay"))));
+    }
+
+    @Test
+    @DisplayName("UC4-08: Unsupported payment methods are rejected without charging the customer")
+    void unsupportedPaymentMethod() throws Exception {
+        Instant start = tomorrow();
+
+        reserve(CUSTOMER, washer, start,
+                start.plus(30, ChronoUnit.MINUTES),
+                "pm_invalid")
+                .andExpect(status().isBadRequest());
+
+        verify(stripe, never()).pay(
+                any(), anyInt(), any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("UC4-09: Missing or empty payment methods return 400")
+    void missingOrEmptyPaymentMethod() throws Exception {
+        Instant start = tomorrow();
+        Instant end = start.plus(30, ChronoUnit.MINUTES);
+
+        String body = """
+                {
+                    "machineId": %d,
+                    "startsAt": "%s",
+                    "endsAt": "%s"
+                }
+                """.formatted(washer, start, end);
+
+        api.perform(post("/api/reservations")
+                        .with(user(CUSTOMER).roles("CUSTOMER"))
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isBadRequest());
+
+        reserve(CUSTOMER, washer, start, end, "")
+                .andExpect(status().isBadRequest());
+
+        reserve(CUSTOMER, washer, start, end, "   ")
+                .andExpect(status().isBadRequest());
+
+        verify(stripe, never()).pay(
+                any(), anyInt(), any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("UC4-10: An overlapping reservation does not trigger another payment")
+    void overlappingReservationDoesNotCharge() throws Exception {
+        String other = "other.payer@example.com";
+        addCustomer(other);
+
+        Instant start = tomorrow();
+        Instant end = start.plus(60, ChronoUnit.MINUTES);
+
+        reserve(CUSTOMER, washer, start, end)
+                .andExpect(status().isCreated());
+
+        reserve(other, washer, start, end)
+                .andExpect(status().isConflict());
+
+        verify(stripe, times(1)).pay(
+                any(), anyInt(), any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("UC4-11: Invalid reservations do not trigger payment")
+    void invalidReservationDoesNotCharge() throws Exception {
+        Instant start = tomorrow();
+
+        // Invalid duration
+        reserve(CUSTOMER, washer, start,
+                start.plus(45, ChronoUnit.MINUTES))
+                .andExpect(status().isBadRequest());
+
+        // End time before start time
+        reserve(CUSTOMER, washer, start,
+                start.minus(30, ChronoUnit.MINUTES))
+                .andExpect(status().isBadRequest());
+
+        // Duration exceeds four hours
+        reserve(CUSTOMER, washer, start,
+                start.plus(270, ChronoUnit.MINUTES))
+                .andExpect(status().isBadRequest());
+
+        verify(stripe, never()).pay(
+                any(), anyInt(), any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("UC4-12: Stripe provider failure does not record a successful payment")
+    void providerFailureDoesNotRecordPayment() throws Exception {
+        when(stripe.pay(eq("pm_card_visa"),
+                anyInt(), any(), any(), any()))
+                .thenThrow(new ApplicationException(
+                        Reason.PAYMENT_PROVIDER_ERROR,
+                        "Could not complete the Stripe test payment."));
+
+        Instant start = tomorrow();
+
+        reserve(CUSTOMER, washer, start,
+                start.plus(30, ChronoUnit.MINUTES))
+                .andExpect(status().isBadGateway());
+
+        long paymentCount = database.sql("""
+                SELECT COUNT(*)
+                FROM reservation_payments p
+                JOIN reservations r ON r.id = p.reservation_id
+                WHERE r.machine_id = :machineId
+                """)
+                .param("machineId", washer)
+                .query(Long.class)
+                .single();
+
+        assertThat(paymentCount).isZero();
+    }
+
+    @Test
+    @DisplayName("UC4-13: Failed and successful payment attempts are both recorded after retry")
+    void retryPaymentRecords() throws Exception {
+        Instant start = tomorrow();
+        Instant end = start.plus(30, ChronoUnit.MINUTES);
+
+        reserve(CUSTOMER, washer, start, end, DECLINED_CARD)
+                .andExpect(status().isPaymentRequired());
+
+        reserve(CUSTOMER, washer, start, end)
+                .andExpect(status().isCreated());
+
+        long failedCount = database.sql("""
+                SELECT COUNT(*)
+                FROM reservation_payments p
+                JOIN reservations r ON r.id = p.reservation_id
+                WHERE r.machine_id = :machineId
+                AND p.status = 'FAILED'
+                AND r.status = 'Payment Failed'
+                """)
+                .param("machineId", washer)
+                .query(Long.class)
+                .single();
+
+        long successfulCount = database.sql("""
+                SELECT COUNT(*)
+                FROM reservation_payments p
+                JOIN reservations r ON r.id = p.reservation_id
+                WHERE r.machine_id = :machineId
+                AND p.status = 'SUCCEEDED'
+                AND r.status = 'Confirmed'
+                """)
+                .param("machineId", washer)
+                .query(Long.class)
+                .single();
+
+        assertThat(failedCount).isEqualTo(1);
+        assertThat(successfulCount).isEqualTo(1);
+
+        verify(stripe, times(2)).pay(
+                any(), anyInt(), any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("UC4-14: Maximum-duration reservations have the correct payment amounts")
+    void maximumDurationPricing() throws Exception {
+        Instant start = tomorrow();
+        Instant end = start.plus(240, ChronoUnit.MINUTES);
+
+        reserve(CUSTOMER, washer, start, end)
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.payment.amountCents")
+                        .value(4000))
+                .andExpect(jsonPath("$.payment.status")
+                        .value("SUCCEEDED"));
+
+        reserve(CUSTOMER, dryer, start, end)
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.payment.amountCents")
+                        .value(2400))
+                .andExpect(jsonPath("$.payment.status")
+                        .value("SUCCEEDED"));
+
+        assertThat(latestPayment(washer).get("amount_cents"))
+                .isEqualTo(4000);
+
+        assertThat(latestPayment(dryer).get("amount_cents"))
+                .isEqualTo(2400);
+
+        verify(stripe, times(1)).pay(
+                eq("pm_card_visa"), eq(4000),
+                eq("CAD"), any(), any());
+
+        verify(stripe, times(1)).pay(
+                eq("pm_card_visa"), eq(2400),
+                eq("CAD"), any(), any());
     }
 }

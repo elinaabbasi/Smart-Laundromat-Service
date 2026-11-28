@@ -26,11 +26,11 @@ Automated tests for the Smart Laundromat API, covering every use case built so f
 | UC1 – Customer Accounts | CustomerAccountsTest | 13 | 13 | 0 |
 | UC2 – Search and Select a Machine | MachinesTest | 15 | 15 | 0 |
 | UC3 – Reservations | ReservationsTest | 18 | 18 | 0 |
-| UC4 – Payments | PaymentsTest | 7 | 7 | 0 |
+| UC4 – Payments | PaymentsTest | 14 | 14 | 0 |
 | UC6 – Notifications | NotificationsTest | 4 | 4 | 0 |
 | UC8 – Administration | AdminDashboardTest | 10 | 10 | 0 |
 | UC9 – Analytics | AnalyticsSummaryTest | 4 | 4 | 0 |
-| **Total** | | **71** | **71** | **0** |
+| **Total** | | **78** | **78** | **0** |
 
 ## Test cases
 
@@ -116,6 +116,13 @@ Automated tests for the Smart Laundromat API, covering every use case built so f
 | UC4-05 | A declined reservation doesn't appear in the customer's reservations | Pass |
 | UC4-06 | If Stripe can't be reached, the customer gets an error instead of a booking | Pass |
 | UC4-07 | Customers only see their own reservations and payments | Pass |
+| UC4-08 | Unsupported payment method | Returns 400 without triggering payment | PASS |
+| UC4-09 | Missing, empty or whitespace-only payment method | Returns 400 without triggering payment | PASS |
+| UC4-10 | Overlapping reservation payment prevention | Only the valid reservation triggers payment | PASS |
+| UC4-11 | Invalid reservation payment prevention | Invalid reservations do not trigger payment | PASS |
+| UC4-12 | Stripe provider failure | Returns 502 and no payment record is created | PASS |
+| UC4-13 | Payment records after retry | Both failed and successful payment attempts are preserved | PASS |
+| UC4-14 | Maximum-duration pricing | Washer costs $40 and dryer costs $24; API, database and gateway amounts match | PASS |
 
 ### UC6: Notifications
 
